@@ -1,3 +1,9 @@
+### WORK IN PROGRESS
+
+This is a work in progress, I'm still updating all the API's to be async so expect breaking 
+changes in a short term.
+
+
 ### Introduction
 
 This repository contains an easy-to-use and well-documented .NET assembly for communicating with
