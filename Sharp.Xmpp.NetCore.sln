@@ -12,6 +12,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Sharp.Xmpp.NetCore", "src\Sharp.Xmpp.NetCore\Sharp.Xmpp.NetCore.xproj", "{97249732-23E4-4577-AD99-B42F65E7F622}"
 EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "DnDnsCore", "DnDnsCore\src\DnDnsCore\DnDnsCore.xproj", "{C4A74BC2-EAB7-48BD-A110-A094ADDFC662}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -22,6 +24,10 @@ Global
 		{97249732-23E4-4577-AD99-B42F65E7F622}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{97249732-23E4-4577-AD99-B42F65E7F622}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{97249732-23E4-4577-AD99-B42F65E7F622}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C4A74BC2-EAB7-48BD-A110-A094ADDFC662}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C4A74BC2-EAB7-48BD-A110-A094ADDFC662}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C4A74BC2-EAB7-48BD-A110-A094ADDFC662}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C4A74BC2-EAB7-48BD-A110-A094ADDFC662}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
