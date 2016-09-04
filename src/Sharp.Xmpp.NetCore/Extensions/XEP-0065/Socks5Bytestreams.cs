@@ -252,9 +252,7 @@ namespace Sharp.Xmpp.Extensions
             ProxyAllowed = true;
             Proxies = new HashSet<Streamhost>();
             UseUPnP = false;
-#if WINDOWSPLATFORM
-			UseUPnP = true;
-#endif
+
         }
 
         /// <summary>
@@ -590,14 +588,7 @@ namespace Sharp.Xmpp.Extensions
             // Next, try to retrieve external IP addresses from UPnP-enabled devices.
             if (UseUPnP)
             {
-#if WINDOWSPLATFORM
-                try {
-					foreach (var address in UPnP.GetExternalAddresses())
-						set.Add(address);
-				} catch (Exception) {
-					// Fall through in case any device querying goes wrong.
-				}
-#endif
+                throw new NotImplementedException(".net Core version doesn't support UPnP");
             }
             // Finally, perform a STUN query.
             try
@@ -738,17 +729,6 @@ namespace Sharp.Xmpp.Extensions
             {
                 externalAddresses = await GetExternalAddresses();
                 // Check if we might need to forward the server port.
-#if WINDOWSPLATFORM
-                if (externalAddresses.Any(addr => BehindNAT(addr)) && UseUPnP) {
-					try {
-						UPnP.ForwardPort(socks5Server.Port, ProtocolType.Tcp,
-							"XMPP SOCKS5 File-transfer");
-					} catch (InvalidOperationException) {
-						// If automatic port forwarding failed for whatever reason, just
-						// go on normally. The user can still configure forwarding manually.
-					}
-				}
-#endif
             }
             catch (NotSupportedException)
             {
