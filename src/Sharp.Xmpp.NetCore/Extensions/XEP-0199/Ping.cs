@@ -2,6 +2,7 @@
 using Sharp.Xmpp.Im;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Sharp.Xmpp.Extensions
 {
@@ -54,14 +55,14 @@ namespace Sharp.Xmpp.Extensions
         /// <param name="stanza">The stanza which is being received.</param>
         /// <returns>true to intercept the stanza or false to pass the stanza
         /// on to the next handler.</returns>
-        public bool Input(Iq stanza)
+        public async Task<bool> Input(Iq stanza)
         {
             if (stanza.Type != IqType.Get)
                 return false;
             var ping = stanza.Data["ping"];
             if (ping == null || ping.NamespaceURI != "urn:xmpp:ping")
                 return false;
-            im.IqResult(stanza);
+            await im.IqResult(stanza);
             // We took care of this IQ request, so intercept it and don't pass it
             // on to other handlers.
             return true;
@@ -82,16 +83,16 @@ namespace Sharp.Xmpp.Extensions
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public TimeSpan PingEntity(Jid jid)
+        public async Task<TimeSpan> PingEntity(Jid jid)
         {
             jid.ThrowIfNull("jid");
-            if (!ecapa.Supports(jid, Extension.Ping))
+            if (!await ecapa.Supports(jid, Extension.Ping))
             {
                 throw new NotSupportedException("The XMPP entity does not support the " +
                     "'Ping' extension.");
             }
             DateTime start = DateTime.Now;
-            Iq iq = im.IqRequest(IqType.Get, jid, im.Jid,
+            Iq iq = await im.IqRequest(IqType.Get, jid, im.Jid,
                 Xml.Element("ping", "urn:xmpp:ping"));
             if (iq.Type == IqType.Error)
                 throw Util.ExceptionFromError(iq, "Could not ping XMPP entity.");

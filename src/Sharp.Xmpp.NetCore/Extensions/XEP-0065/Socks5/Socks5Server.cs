@@ -72,7 +72,7 @@ namespace Sharp.Xmpp.Extensions.Socks5
             // Setup the receive timeout.
             client.ReceiveTimeout = receiveTimeout;
             // Initialize the SOCKS5 connection.
-            InitializeConnection();
+            await InitializeConnection();
             // Wait for a SOCKS5 connect request from the client.
             return WaitForRequest();
         }
@@ -87,9 +87,9 @@ namespace Sharp.Xmpp.Extensions.Socks5
         /// null.</exception>
         /// <exception cref="ObjectDisposedException">The object has been
         /// disposed.</exception>
-        public void Reply(ReplyStatus status, IPAddress address, ushort port)
+        public async Task Reply(ReplyStatus status, IPAddress address, ushort port)
         {
-            Reply(new SocksReply(status, address, port));
+            await Reply(new SocksReply(status, address, port));
         }
 
         /// <summary>
@@ -102,9 +102,9 @@ namespace Sharp.Xmpp.Extensions.Socks5
         /// null.</exception>
         /// <exception cref="ObjectDisposedException">The object has been
         /// disposed.</exception>
-        public void Reply(ReplyStatus status, string domain, ushort port)
+        public async Task Reply(ReplyStatus status, string domain, ushort port)
         {
-            Reply(new SocksReply(status, domain, port));
+            await Reply(new SocksReply(status, domain, port));
         }
 
         /// <summary>
@@ -116,12 +116,12 @@ namespace Sharp.Xmpp.Extensions.Socks5
         /// null.</exception>
         /// <exception cref="ObjectDisposedException">The object has been
         /// disposed.</exception>
-        public void Reply(SocksReply reply)
+        public async Task Reply(SocksReply reply)
         {
             reply.ThrowIfNull("reply");
             AssertValid();
             var bytes = reply.Serialize();
-            stream.Write(bytes, 0, bytes.Length);
+            await stream.WriteAsync(bytes, 0, bytes.Length);
         }
 
         /// <summary>
@@ -205,11 +205,11 @@ namespace Sharp.Xmpp.Extensions.Socks5
         /// requires authentication.</exception>
         /// <exception cref="IOException">The stream could not be read, or the
         /// operation timed out.</exception>
-        private void InitializeConnection()
+        private async Task InitializeConnection()
         {
             stream = client.GetStream();
             // Read the client's greeting message.
-            PerformGreeting();
+            await PerformGreeting();
         }
 
         /// <summary>
@@ -219,7 +219,7 @@ namespace Sharp.Xmpp.Extensions.Socks5
         /// requires authentication.</exception>
         /// <exception cref="IOException">The stream could not be read, or the
         /// operation timed out.</exception>
-        private void PerformGreeting()
+        private async Task PerformGreeting()
         {
             ByteBuilder b = new ByteBuilder();
             using (var r = new BinaryReader(stream, Encoding.UTF8, true))
@@ -238,7 +238,7 @@ namespace Sharp.Xmpp.Extensions.Socks5
             }
             // Send back our greeting response.
             var response = new ServerGreeting(AuthMethod.None).Serialize();
-            stream.Write(response, 0, response.Length);
+            await stream.WriteAsync(response, 0, response.Length);
         }
 
         /// <summary>

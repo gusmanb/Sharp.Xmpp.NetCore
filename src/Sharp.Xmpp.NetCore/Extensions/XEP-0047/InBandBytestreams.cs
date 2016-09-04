@@ -83,7 +83,7 @@ namespace Sharp.Xmpp.Extensions
         /// <param name="stanza">The stanza which has been received.</param>
         /// <returns>true to intercept the stanza or false to pass the stanza
         /// on to the next handler.</returns>
-        public bool Input(Iq stanza)
+        public async Task<bool> Input(Iq stanza)
         {
             if (stanza.Type != IqType.Set)
                 return false;
@@ -105,7 +105,7 @@ namespace Sharp.Xmpp.Extensions
                         break;
 
                     case "data":
-                        Data(sessionId, stanza);
+                        await Data(sessionId, stanza);
                         break;
 
                     case "close":
@@ -116,12 +116,12 @@ namespace Sharp.Xmpp.Extensions
                         throw new ArgumentException("Invalid stanza element.");
                 }
                 // Acknowledge the IQ request.
-                im.IqResult(stanza);
+                await im.IqResult(stanza);
             }
             catch (Exception ex)
             {
                 // Send an error response.
-                im.IqError(stanza, ErrorType.Cancel, ErrorCondition.ServiceUnavailable,
+                await im.IqError(stanza, ErrorType.Cancel, ErrorCondition.ServiceUnavailable,
                     ex.Message);
                 // If there is an open stream associated with the session id, we should
                 // dispose of it.
@@ -152,7 +152,7 @@ namespace Sharp.Xmpp.Extensions
         {
             session.ThrowIfNull("session");
             // Open the negotiated IBB.
-            OpenStream(session.To, session.Sid);
+            await OpenStream(session.To, session.Sid);
             byte[] buf = new byte[blockSize];
             // 'seq' is defined as 16-bit unsigned short value that wraps around.
             ushort seq = 0;
@@ -171,7 +171,7 @@ namespace Sharp.Xmpp.Extensions
                         .Attr("seq", seq.ToString())
                         .Text(b64);
                     seq++;
-                    Iq response = im.IqRequest(IqType.Set, session.To, im.Jid, data);
+                    Iq response = await im.IqRequest(IqType.Set, session.To, im.Jid, data);
                     if (response.Type == IqType.Error)
                         throw Util.ExceptionFromError(response);
                     session.Count = session.Count + read;
@@ -195,7 +195,7 @@ namespace Sharp.Xmpp.Extensions
             finally
             {
                 // Gracefully close the IBB.
-                CloseStream(session.To, session.Sid);
+                await CloseStream(session.To, session.Sid);
             }
         }
 
@@ -286,7 +286,7 @@ namespace Sharp.Xmpp.Extensions
         /// <exception cref="IOException">The data could not be written to the
         /// file-stream. Consult the InnerException property of the IOException object
         /// to obtain the specific reason.</exception>
-        private void Data(string sessionId, Iq stanza)
+        private async Task Data(string sessionId, Iq stanza)
         {
             sessionId.ThrowIfNull("sessionId");
             stanza.ThrowIfNull("stanza");
@@ -301,7 +301,7 @@ namespace Sharp.Xmpp.Extensions
             byte[] bytes = Convert.FromBase64String(base64);
             try
             {
-                session.Stream.Write(bytes, 0, bytes.Length);
+                await session.Stream.WriteAsync(bytes, 0, bytes.Length);
             }
             catch (Exception e)
             {
@@ -327,9 +327,9 @@ namespace Sharp.Xmpp.Extensions
         /// <exception cref="XmppErrorException">The server returned an XMPP error code.
         /// Use the Error property of the XmppErrorException to obtain the specific
         /// error condition.</exception>
-        private void OpenStream(Jid to, string sessionId)
+        private async Task OpenStream(Jid to, string sessionId)
         {
-            if (!ecapa.Supports(to, Extension.InBandBytestreams))
+            if (!await ecapa.Supports(to, Extension.InBandBytestreams))
             {
                 throw new NotSupportedException("The XMPP entity does not support the " +
                     "'In-Band Bytestreams' extension.");
@@ -339,7 +339,7 @@ namespace Sharp.Xmpp.Extensions
                 .Attr("block-size", blockSize.ToString())
                 .Attr("sid", sessionId)
                 .Attr("stanza", "iq");
-            Iq response = im.IqRequest(IqType.Set, to, im.Jid, open);
+            Iq response = await im.IqRequest(IqType.Set, to, im.Jid, open);
             if (response.Type == IqType.Error)
             {
                 throw Util.ExceptionFromError(response, "The in-band bytestream could " +
@@ -360,10 +360,10 @@ namespace Sharp.Xmpp.Extensions
         /// <exception cref="NotSupportedException">The XMPP entity with
         /// the specified JID does not support the 'In-Band Bytestreams' XMPP
         /// extension.</exception>
-        private void CloseStream(Jid to, string sessionId)
+        private async Task CloseStream(Jid to, string sessionId)
         {
             siFileTransfer.InvalidateSession(sessionId);
-            if (!ecapa.Supports(to, Extension.InBandBytestreams))
+            if (!await ecapa.Supports(to, Extension.InBandBytestreams))
             {
                 throw new NotSupportedException("The XMPP entity does not support the " +
                     "'In-Band Bytestreams' extension.");
@@ -372,7 +372,7 @@ namespace Sharp.Xmpp.Extensions
             var close = Xml.Element("close", "http://jabber.org/protocol/ibb")
                 .Attr("sid", sessionId);
             // We don't care about the other site's response to this.
-            im.IqRequestAsync(IqType.Set, to, im.Jid, close);
+            await im.IqRequestAsync(IqType.Set, to, im.Jid, close);
         }
     }
 }

@@ -3,6 +3,7 @@ using Sharp.Xmpp.Im;
 using System;
 using System.Collections.Generic;
 using System.Xml;
+using System.Threading.Tasks;
 
 namespace Sharp.Xmpp.Extensions
 {
@@ -44,7 +45,7 @@ namespace Sharp.Xmpp.Extensions
         /// <summary>
         /// Determines whether our server supports the 'Blocking Command' extension.
         /// </summary>
-        public bool Supported
+        public Task<bool> Supported
         {
             get
             {
@@ -66,7 +67,7 @@ namespace Sharp.Xmpp.Extensions
         /// <param name="stanza">The stanza which is being received.</param>
         /// <returns>true to intercept the stanza or false to pass the stanza
         /// on to the next handler.</returns>
-        public bool Input(Iq stanza)
+        public async Task<bool> Input(Iq stanza)
         {
             if (stanza.Type != IqType.Set)
                 return false;
@@ -78,7 +79,7 @@ namespace Sharp.Xmpp.Extensions
             if (elem.NamespaceURI != "urn:xmpp:blocking")
                 return false;
             // Acknowledge the "push" request.
-            im.IqResult(stanza);
+            await im.IqResult(stanza);
             // Raise events for blocked/unblocked items.
             foreach (XmlElement item in elem.GetElementsByTagName("item"))
             {
@@ -117,15 +118,15 @@ namespace Sharp.Xmpp.Extensions
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public IEnumerable<Jid> GetBlocklist()
+        public async Task<IEnumerable<Jid>> GetBlocklist()
         {
             // Probe for server support.
-            if (!ecapa.Supports(im.Jid.Domain, Extension.BlockingCommand))
+            if (!await ecapa.Supports(im.Jid.Domain, Extension.BlockingCommand))
             {
                 throw new NotSupportedException("The server does not support " +
                     "the 'Blocking Command' extension.");
             }
-            Iq iq = im.IqRequest(IqType.Get, null, im.Jid,
+            Iq iq = await im.IqRequest(IqType.Get, null, im.Jid,
                 Xml.Element("blocklist", "urn:xmpp:blocking"));
             if (iq.Type == IqType.Error)
                 throw Util.ExceptionFromError(iq, "The blocklist could not be retrieved.");
@@ -162,16 +163,16 @@ namespace Sharp.Xmpp.Extensions
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public void Block(Jid jid)
+        public async Task Block(Jid jid)
         {
             jid.ThrowIfNull("jid");
             // Probe for server support.
-            if (!ecapa.Supports(im.Jid.Domain, Extension.BlockingCommand))
+            if (!await ecapa.Supports(im.Jid.Domain, Extension.BlockingCommand))
             {
                 throw new NotSupportedException("The server does not support " +
                     "the 'Blocking Command' extension.");
             }
-            Iq iq = im.IqRequest(IqType.Set, null, im.Jid,
+            Iq iq = await im.IqRequest(IqType.Set, null, im.Jid,
                 Xml.Element("block", "urn:xmpp:blocking").Child(
                 Xml.Element("item").Attr("jid", jid.ToString())));
             if (iq.Type == IqType.Error)
@@ -193,16 +194,16 @@ namespace Sharp.Xmpp.Extensions
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public void Unblock(Jid jid)
+        public async Task Unblock(Jid jid)
         {
             jid.ThrowIfNull("jid");
             // Probe for server support.
-            if (!ecapa.Supports(im.Jid.Domain, Extension.BlockingCommand))
+            if (!await ecapa.Supports(im.Jid.Domain, Extension.BlockingCommand))
             {
                 throw new NotSupportedException("The server does not support " +
                     "the 'Blocking Command' extension.");
             }
-            Iq iq = im.IqRequest(IqType.Set, null, im.Jid,
+            Iq iq = await im.IqRequest(IqType.Set, null, im.Jid,
                 Xml.Element("unblock", "urn:xmpp:blocking").Child(
                 Xml.Element("item").Attr("jid", jid.ToString())));
             if (iq.Type == IqType.Error)

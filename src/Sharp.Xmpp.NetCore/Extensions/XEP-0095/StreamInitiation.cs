@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml;
+using System.Threading.Tasks;
 
 namespace Sharp.Xmpp.Extensions
 {
@@ -63,7 +64,7 @@ namespace Sharp.Xmpp.Extensions
         /// <param name="stanza">The stanza which is being received.</param>
         /// <returns>true to intercept the stanza or false to pass the stanza
         /// on to the next handler.</returns>
-        public bool Input(Iq stanza)
+        public async Task<bool> Input(Iq stanza)
         {
             if (stanza.Type != IqType.Set)
                 return false;
@@ -74,7 +75,7 @@ namespace Sharp.Xmpp.Extensions
             // If it's an unknown profile, send back an error response.
             if (profiles.ContainsKey(profile) == false)
             {
-                im.IqError(stanza, ErrorType.Cancel, ErrorCondition.BadRequest,
+                await im.IqError(stanza, ErrorType.Cancel, ErrorCondition.BadRequest,
                     "Unknown SI profile", Xml.Element("bad-profile",
                     "http://jabber.org/protocol/si"));
             }
@@ -85,7 +86,7 @@ namespace Sharp.Xmpp.Extensions
                     // Invoke the profile's callback.
                     var response = profiles[profile].Invoke(stanza.From, stanza.Data["si"]);
                     // If response is an error element, send back an error response.
-                    im.IqResponse(response.Name == "error" ? IqType.Error : IqType.Result,
+                    await im.IqResponse(response.Name == "error" ? IqType.Error : IqType.Result,
                         stanza.Id, stanza.From, im.Jid, response);
                 }
                 catch (Exception ex)
@@ -93,7 +94,7 @@ namespace Sharp.Xmpp.Extensions
                     System.Diagnostics.Debug.WriteLine("Exception was raised during Stream Initiation " + ex.ToString());
                     // Send back an error response in case the callback method threw
                     // an exception.
-                    im.IqError(stanza, ErrorType.Cancel, ErrorCondition.ServiceUnavailable);
+                    await im.IqError(stanza, ErrorType.Cancel, ErrorCondition.ServiceUnavailable);
                 }
             }
             // We took care of this IQ request, so intercept it and don't pass it
@@ -131,7 +132,7 @@ namespace Sharp.Xmpp.Extensions
         /// XmppErrorException to obtain the specific error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public InitiationResult InitiateStream(Jid to, string mimeType, string profile,
+        public async Task<InitiationResult> InitiateStream(Jid to, string mimeType, string profile,
             IEnumerable<string> streamOptions, XmlElement data = null)
         {
             to.ThrowIfNull("to");
@@ -143,7 +144,7 @@ namespace Sharp.Xmpp.Extensions
                 throw new ArgumentException("The streamOptions enumerable must " +
                     "include one or more stream-options.");
             }
-            if (!ecapa.Supports(to, Extension.StreamInitiation))
+            if (!await ecapa.Supports(to, Extension.StreamInitiation))
             {
                 throw new NotSupportedException("The XMPP entity does not support " +
                     "the 'Stream Initiation' extension.");
@@ -151,7 +152,7 @@ namespace Sharp.Xmpp.Extensions
             string sid = GenerateSessionId();
             var si = CreateSiElement(sid, mimeType, profile, streamOptions, data);
             // Perform the actual request.
-            Iq iq = im.IqRequest(IqType.Set, to, im.Jid, si);
+            Iq iq = await im.IqRequest(IqType.Set, to, im.Jid, si);
             if (iq.Type == IqType.Error)
                 throw Util.ExceptionFromError(iq, "Stream initiation failed.");
             // Result must contain a 'feature' element.
@@ -188,9 +189,9 @@ namespace Sharp.Xmpp.Extensions
         /// <exception cref="NotSupportedException">The XMPP entity with
         /// the specified JID does not support the 'Stream Initiation' XMPP
         /// extension.</exception>
-        public string InitiateStreamAsync(Jid to, string mimeType, string profile,
+        public async Task<string> InitiateStreamAsync(Jid to, string mimeType, string profile,
             IEnumerable<string> streamOptions, XmlElement data = null,
-            Action<InitiationResult, Iq> cb = null)
+            Func<InitiationResult, Iq, Task> cb = null)
         {
             to.ThrowIfNull("to");
             mimeType.ThrowIfNull("mimeType");
@@ -209,8 +210,8 @@ namespace Sharp.Xmpp.Extensions
             //FIX ME
             string sid = GenerateSessionId();
             var si = CreateSiElement(sid, mimeType, profile, streamOptions, data);
-            // Perform the actual request.
-            im.IqRequestAsync(IqType.Set, to, im.Jid, si, null, (id, iq) =>
+
+            Func<string, Iq, Task> call = async (id, iq) =>
             {
                 if (cb == null)
                     return;
@@ -223,8 +224,11 @@ namespace Sharp.Xmpp.Extensions
                     // Construct the initiation result and call the provided callback.
                     result = new InitiationResult(sid, selected, iq.Data["si"]);
                 }
-                cb(result, iq);
-            });
+                await cb(result, iq);
+            };
+
+            // Perform the actual request.
+            await im.IqRequestAsync(IqType.Set, to, im.Jid, si, null, call);
             return sid;
         }
 

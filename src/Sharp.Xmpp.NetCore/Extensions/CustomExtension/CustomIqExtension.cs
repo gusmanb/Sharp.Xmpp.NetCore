@@ -3,6 +3,7 @@ using Sharp.Xmpp.Im;
 using System;
 using System.Collections.Generic;
 using System.Xml;
+using System.Threading.Tasks;
 
 namespace Sharp.Xmpp.Extensions
 {
@@ -60,7 +61,7 @@ namespace Sharp.Xmpp.Extensions
         /// <param name="stanza">The stanza which is being received.</param>
         /// <returns>true to intercept the stanza or false to pass the stanza
         /// on to the next handler.</returns>
-        public bool Input(Iq stanza)
+        public async Task<bool> Input(Iq stanza)
         {
             string response = null;
             //if (stanza.Type != IqType.Get)
@@ -88,14 +89,14 @@ namespace Sharp.Xmpp.Extensions
                 {
                     xmlresponse.Text(response);
                 }
-                im.IqResult(stanza, xmlresponse);
+                await im.IqResult(stanza, xmlresponse);
             }
             catch (Exception e)
             {
                 System.Diagnostics.Debug.WriteLine("Send back an error response" + e.StackTrace + e.ToString());
                 // Send back an error response in case the callback method threw
                 // an exception.
-                im.IqError(stanza, ErrorType.Modify, ErrorCondition.BadRequest);
+                await im.IqError(stanza, ErrorType.Modify, ErrorCondition.BadRequest);
             }
 
             // We took care of this IQ request, so intercept it and don't pass it
@@ -131,21 +132,20 @@ namespace Sharp.Xmpp.Extensions
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public void RequestCustomIqAsync(Jid jid, string request, Action callback)
+        public async Task RequestCustomIqAsync(Jid jid, string request, Func<Task> callback)
         {
             jid.ThrowIfNull("jid");
             request.ThrowIfNull("str");
 
             //First check if the Jid entity supports the namespace
-            if (!ecapa.Supports(jid, Extension.CustomIqExtension))
+            if (!await ecapa.Supports(jid, Extension.CustomIqExtension))
             {
                 throw new NotSupportedException("The XMPP entity does not support the " +
                     "'CustomIqExtension' extension.");
             }
             var xml = Xml.Element("customiq", "urn:sharp.xmpp:customiq").Text(request);
 
-            //The Request is Async
-            im.IqRequestAsync(IqType.Get, jid, im.Jid, xml, null, (id, iq) =>
+            Func<string, Iq, Task> call = async (id, iq) =>
             {
                 //For any reply we execute the callback
                 if (iq.Type == IqType.Error)
@@ -157,7 +157,7 @@ namespace Sharp.Xmpp.Extensions
                         //An empty response means the message was received
                         if (callback != null)
                         {
-                            callback.Invoke();
+                            await callback();
                         }
                     }
                     catch (Exception e)
@@ -166,7 +166,10 @@ namespace Sharp.Xmpp.Extensions
                         throw Util.ExceptionFromError(iq, "Not correctly formated response to RequestCustomIqAsync, " + e.Message);
                     }
                 }
-            });
+            };
+
+            //The Request is Async
+            await im.IqRequestAsync(IqType.Get, jid, im.Jid, xml, null, call);
         }
 
         /// <summary>
@@ -184,13 +187,13 @@ namespace Sharp.Xmpp.Extensions
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public void RequestCustomIq(Jid jid, string request)
+        public async Task RequestCustomIq(Jid jid, string request)
         {
             jid.ThrowIfNull("jid");
             request.ThrowIfNull("str");
 
             //First check if the Jid entity supports the namespace
-            if (!ecapa.Supports(jid, Extension.CustomIqExtension))
+            if (!await ecapa.Supports(jid, Extension.CustomIqExtension))
             {
                 throw new NotSupportedException("The XMPP entity does not support the " +
                     "'CustomIqExtension' extension.");
@@ -198,7 +201,7 @@ namespace Sharp.Xmpp.Extensions
             var xml = Xml.Element("customiq", "urn:sharp.xmpp:customiq").Text(request);
 
             //The Request is Async
-            im.IqRequest(IqType.Get, jid, im.Jid, xml);
+            await im.IqRequest(IqType.Get, jid, im.Jid, xml);
         }
 
         /// <summary>

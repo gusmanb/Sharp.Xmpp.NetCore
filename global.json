@@ -1,5 +1,5 @@
 {
-  "projects": [ "src", "test", "DnDnsCore/src" ],
+  "projects": [ "src", "test", "DnDnsCore/src", "../DnDnsCore/src" ],
   "sdk": {
     "version": "1.0.0-preview2-003121"
   }

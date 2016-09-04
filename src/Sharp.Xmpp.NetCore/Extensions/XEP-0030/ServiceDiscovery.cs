@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Xml;
+using System.Threading.Tasks;
 
 namespace Sharp.Xmpp.Extensions
 {
@@ -74,7 +75,7 @@ namespace Sharp.Xmpp.Extensions
         /// <param name="stanza">The stanza which is being received.</param>
         /// <returns>true to intercept the stanza or false to pass the stanza
         /// on to the next handler.</returns>
-        public bool Input(Iq stanza)
+        public async Task<bool> Input(Iq stanza)
         {
             if (stanza.Type != IqType.Get)
                 return false;
@@ -84,7 +85,7 @@ namespace Sharp.Xmpp.Extensions
             // TODO: Implement item discovery.
             if (query.NamespaceURI == "http://jabber.org/protocol/disco#items")
             {
-                im.IqResult(stanza, Xml.Element("query",
+                await im.IqResult(stanza, Xml.Element("query",
                     "http://jabber.org/protocol/disco#items"));
                 return true;
             }
@@ -100,7 +101,7 @@ namespace Sharp.Xmpp.Extensions
             foreach (string xmlns in CompileFeatureSet())
                 xml.Child(Xml.Element("feature").Attr("var", xmlns));
             // Send the IQ response.
-            im.IqResult(stanza, xml);
+            await im.IqResult(stanza, xml);
             // We took care of this IQ request, so intercept it, i.e. don't pass it
             // on to other handlers.
             return true;
@@ -117,11 +118,11 @@ namespace Sharp.Xmpp.Extensions
         /// <exception cref="ArgumentNullException">The jid parameter is null.</exception>
         /// <exception cref="NotSupportedException">The XMPP entity with the specified
         /// JID does not support querying of feature information.</exception>
-        public bool Supports<T>(Jid jid) where T : XmppExtension
+        public async Task<bool> Supports<T>(Jid jid) where T : XmppExtension
         {
             jid.ThrowIfNull("jid");
             T ext = im.GetExtension<T>();
-            return Supports(jid, ext.Xep);
+            return await Supports(jid, ext.Xep);
         }
 
         /// <summary>
@@ -136,14 +137,14 @@ namespace Sharp.Xmpp.Extensions
         /// parameter is null.</exception>
         /// <exception cref="NotSupportedException">The XMPP entity with the
         /// specified JID does not support querying of feature information.</exception>
-        public bool Supports(Jid jid, params Extension[] extensions)
+        public async Task<bool> Supports(Jid jid, params Extension[] extensions)
         {
             jid.ThrowIfNull("jid");
             extensions.ThrowIfNull("extensions");
             // Have the features of the JID been cached yet?
             if (!cache.ContainsKey(jid))
                 // Perform SDisco request and cache the result.
-                cache.Add(jid, QueryFeatures(jid));
+                cache.Add(jid, await QueryFeatures(jid));
             IEnumerable<Extension> supported = cache[jid];
             foreach (Extension ext in extensions)
             {
@@ -165,11 +166,11 @@ namespace Sharp.Xmpp.Extensions
         /// null.</exception>
         /// <exception cref="NotSupportedException">The XMPP entity with the
         /// specified JID does not support querying of feature information.</exception>
-        public IEnumerable<Extension> GetExtensions(Jid jid)
+        public async Task<IEnumerable<Extension>> GetExtensions(Jid jid)
         {
             jid.ThrowIfNull("jid");
             if (!cache.ContainsKey(jid))
-                cache.Add(jid, QueryFeatures(jid));
+                cache.Add(jid, await QueryFeatures(jid));
             return cache[jid];
         }
 
@@ -183,9 +184,9 @@ namespace Sharp.Xmpp.Extensions
         /// is null.</exception>
         /// <exception cref="NotSupportedException">The query could not be
         /// performed or the response was invalid.</exception>
-        public IEnumerable<Identity> GetIdentities(Jid jid)
+        public async Task<IEnumerable<Identity>> GetIdentities(Jid jid)
         {
-            return QueryIdentities(jid);
+            return await QueryIdentities(jid);
         }
 
         /// <summary>
@@ -198,9 +199,9 @@ namespace Sharp.Xmpp.Extensions
         /// null.</exception>
         /// <exception cref="NotSupportedException">The query could not be
         /// performed or the response was invalid.</exception>
-        public IEnumerable<Item> GetItems(Jid jid)
+        public async Task<IEnumerable<Item>> GetItems(Jid jid)
         {
-            return QueryItems(jid);
+            return await QueryItems(jid);
         }
 
         /// <summary>
@@ -243,10 +244,10 @@ namespace Sharp.Xmpp.Extensions
         /// is null.</exception>
         /// <exception cref="NotSupportedException">The query could not be
         /// performed or the response was invalid.</exception>
-        private IEnumerable<Extension> QueryFeatures(Jid jid)
+        private async Task<IEnumerable<Extension>> QueryFeatures(Jid jid)
         {
             jid.ThrowIfNull("jid");
-            Iq iq = im.IqRequest(IqType.Get, jid, im.Jid,
+            Iq iq = await im.IqRequest(IqType.Get, jid, im.Jid,
                 Xml.Element("query", "http://jabber.org/protocol/disco#info"));
             if (iq.Type != IqType.Result)
                 throw new NotSupportedException("Could not query features: " + iq);
@@ -278,10 +279,10 @@ namespace Sharp.Xmpp.Extensions
         /// is null.</exception>
         /// <exception cref="NotSupportedException">The query could not be
         /// performed or the response was invalid.</exception>
-        private IEnumerable<Identity> QueryIdentities(Jid jid)
+        private async Task<IEnumerable<Identity>> QueryIdentities(Jid jid)
         {
             jid.ThrowIfNull("jid");
-            Iq iq = im.IqRequest(IqType.Get, jid, im.Jid,
+            Iq iq = await im.IqRequest(IqType.Get, jid, im.Jid,
                 Xml.Element("query", "http://jabber.org/protocol/disco#info"));
             if (iq.Type != IqType.Result)
                 throw new NotSupportedException("Could not query features: " + iq);
@@ -312,10 +313,10 @@ namespace Sharp.Xmpp.Extensions
         /// is null.</exception>
         /// <exception cref="NotSupportedException">The query could not be
         /// performed or the response was invalid.</exception>
-        private IEnumerable<Item> QueryItems(Jid jid)
+        private async Task<IEnumerable<Item>> QueryItems(Jid jid)
         {
             jid.ThrowIfNull("jid");
-            Iq iq = im.IqRequest(IqType.Get, jid, im.Jid,
+            Iq iq = await im.IqRequest(IqType.Get, jid, im.Jid,
                 Xml.Element("query", "http://jabber.org/protocol/disco#items"));
             if (iq.Type != IqType.Result)
                 throw new NotSupportedException("Could not query items: " + iq);

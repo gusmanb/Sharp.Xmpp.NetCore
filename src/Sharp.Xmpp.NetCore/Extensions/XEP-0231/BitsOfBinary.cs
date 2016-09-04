@@ -2,6 +2,7 @@
 using Sharp.Xmpp.Im;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Sharp.Xmpp.Extensions
 {
@@ -126,20 +127,20 @@ namespace Sharp.Xmpp.Extensions
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public BobData Get(string cid, Jid from, bool cache = true)
+        public async Task<BobData> Get(string cid, Jid from, bool cache = true)
         {
             cid.ThrowIfNull("cid");
             from.ThrowIfNull("from");
             // If the data is already in the cache, return it.
             if (this.cache.ContainsKey(cid))
                 return this.cache[cid];
-            if (!ecapa.Supports(from, Extension.BitsOfBinary))
+            if (!await ecapa.Supports(from, Extension.BitsOfBinary))
             {
                 throw new NotSupportedException("The XMPP entity does not support " +
                     "the 'Bits of Binary' extension.");
             }
             // Request the data.
-            Iq iq = im.IqRequest(IqType.Get, from, im.Jid,
+            Iq iq = await im.IqRequest(IqType.Get, from, im.Jid,
                 Xml.Element("data", "urn:xmpp:bob").Attr("cid", cid));
             if (iq.Type == IqType.Error)
                 throw Util.ExceptionFromError(iq, "The data-item with the specified " +
@@ -178,7 +179,7 @@ namespace Sharp.Xmpp.Extensions
         /// <param name="stanza">The stanza which is being received.</param>
         /// <returns>true to intercept the stanza or false to pass the stanza
         /// on to the next handler.</returns>
-        public bool Input(Iq stanza)
+        public async Task<bool> Input(Iq stanza)
         {
             if (stanza.Type != IqType.Get)
                 return false;
@@ -192,12 +193,12 @@ namespace Sharp.Xmpp.Extensions
                 var data = Xml.Element("data", "urn:xmpp:bob").Attr("cid", cid)
                     .Attr("type", b.Type)
                     .Text(Convert.ToBase64String(b.Data));
-                im.IqResult(stanza, data);
+                await im.IqResult(stanza, data);
             }
             else
             {
                 // If we don't have the item, return an 'item not found' error.
-                im.IqError(stanza, ErrorType.Cancel, ErrorCondition.ItemNotFound);
+                await im.IqError(stanza, ErrorType.Cancel, ErrorCondition.ItemNotFound);
             }
             // We took care of this IQ request, so intercept it and don't pass it
             // on to other handlers.

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml;
+using System.Threading.Tasks;
 
 namespace Sharp.Xmpp.Extensions
 {
@@ -72,10 +73,10 @@ namespace Sharp.Xmpp.Extensions
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public void Register(RegistrationCallback callback)
+        public async Task Register(RegistrationCallback callback)
         {
             callback.ThrowIfNull("callback");
-            Iq iq = im.IqRequest(IqType.Get, null, null,
+            Iq iq = await im.IqRequest(IqType.Get, null, null,
                 Xml.Element("query", "jabber:iq:register"));
             if (iq.Type == IqType.Error)
                 throw new NotSupportedException("The XMPP server does not support the " +
@@ -114,7 +115,7 @@ namespace Sharp.Xmpp.Extensions
                         field.Values.FirstOrDefault()));
                 }
             }
-            iq = im.IqRequest(IqType.Set, null, null, xml);
+            iq = await im.IqRequest(IqType.Set, null, null, xml);
             if (iq.Type == IqType.Error)
                 throw Util.ExceptionFromError(iq, "The registration could not be " +
                     "completed.");
@@ -133,10 +134,10 @@ namespace Sharp.Xmpp.Extensions
         /// condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or
         /// another unspecified XMPP error occurred.</exception>
-        public void ChangePassword(string newPassword)
+        public async Task ChangePassword(string newPassword)
         {
             newPassword.ThrowIfNull("newPassword");
-            Iq iq = im.IqRequest(IqType.Set, null, null,
+            Iq iq = await im.IqRequest(IqType.Set, null, null,
                 Xml.Element("query", "jabber:iq:register")
                     .Child(Xml.Element("username").Text(im.Username))
                     .Child(Xml.Element("password").Text(newPassword)));

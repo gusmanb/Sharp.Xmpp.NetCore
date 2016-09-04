@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Sharp.Xmpp.Extensions
 {
@@ -82,7 +83,7 @@ namespace Sharp.Xmpp.Extensions
         /// <param name="stanza">The stanza which is being received.</param>
         /// <returns>true to intercept the stanza or false to pass the stanza
         /// on to the next handler.</returns>
-        public bool Input(Presence stanza)
+        public async Task<bool> Input(Presence stanza)
         {
             var c = stanza.Data["c"];
             if (c == null || c.NamespaceURI != "http://jabber.org/protocol/caps")
@@ -123,7 +124,7 @@ namespace Sharp.Xmpp.Extensions
         /// <exception cref="NotSupportedException">The XMPP entity with
         /// the specified JID does not support querying of feature
         /// information.</exception>
-        public IEnumerable<Extension> GetExtensions(Jid jid)
+        public async Task<IEnumerable<Extension>> GetExtensions(Jid jid)
         {
             jid.ThrowIfNull("jid");
             if (hashes.ContainsKey(jid))
@@ -133,12 +134,12 @@ namespace Sharp.Xmpp.Extensions
                 // request the feature set and subsequently cache it.
                 // FIXME: Calculate hash of feature set and ensure it equals stored hash.
                 if (!cachedFeatures.ContainsKey(hash))
-                    cachedFeatures.Add(hash, sdisco.GetExtensions(jid));
+                    cachedFeatures.Add(hash, await sdisco.GetExtensions(jid));
                 return cachedFeatures[hash];
             }
             // If we don't have a hash for the jid, the XMPP entity probably does not
             // support 'caps' so resort to a normal SDisco request.
-            return sdisco.GetExtensions(jid);
+            return await sdisco.GetExtensions(jid);
         }
 
         /// <summary>
@@ -151,9 +152,9 @@ namespace Sharp.Xmpp.Extensions
         /// is null.</exception>
         /// <exception cref="NotSupportedException">The query could not be
         /// performed or the response was invalid.</exception>
-        public IEnumerable<Identity> GetIdentities(Jid jid)
+        public async Task<IEnumerable<Identity>> GetIdentities(Jid jid)
         {
-            return sdisco.GetIdentities(jid);
+            return await sdisco.GetIdentities(jid);
         }
 
         /// <summary>
@@ -169,11 +170,11 @@ namespace Sharp.Xmpp.Extensions
         /// <exception cref="NotSupportedException">The XMPP entity with
         /// the specified JID does not support querying of feature
         /// information.</exception>
-        public bool Supports<T>(Jid jid) where T : XmppExtension
+        public async Task<bool> Supports<T>(Jid jid) where T : XmppExtension
         {
             jid.ThrowIfNull("jid");
             T ext = im.GetExtension<T>();
-            return Supports(jid, ext.Xep);
+            return await Supports(jid, ext.Xep);
         }
 
         /// <summary>
@@ -189,11 +190,11 @@ namespace Sharp.Xmpp.Extensions
         /// <exception cref="NotSupportedException">The XMPP entity with
         /// the specified JID does not support querying of feature
         /// information.</exception>
-        public bool Supports(Jid jid, params Extension[] extensions)
+        public async Task<bool> Supports(Jid jid, params Extension[] extensions)
         {
             jid.ThrowIfNull("jid");
             extensions.ThrowIfNull("extensions");
-            IEnumerable<Extension> supported = GetExtensions(jid);
+            IEnumerable<Extension> supported = await GetExtensions(jid);
             foreach (Extension ext in extensions)
             {
                 if (!supported.Contains(ext))
@@ -216,12 +217,12 @@ namespace Sharp.Xmpp.Extensions
         /// <exception cref="NotSupportedException">The XMPP entity with
         /// the specified JID does not support querying of feature
         /// information.</exception>
-        public bool HasIdentity(Jid jid, string category, string type)
+        public async Task<bool> HasIdentity(Jid jid, string category, string type)
         {
             jid.ThrowIfNull("jid");
             category.ThrowIfNull("category");
             type.ThrowIfNull("type");
-            foreach (Identity ident in GetIdentities(jid))
+            foreach (Identity ident in await GetIdentities(jid))
             {
                 if (ident.Category == category && ident.Type == type)
                     return true;

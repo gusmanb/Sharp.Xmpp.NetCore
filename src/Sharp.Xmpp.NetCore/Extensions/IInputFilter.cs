@@ -1,4 +1,5 @@
-﻿using Sharp.Xmpp.Core;
+﻿using System.Threading.Tasks;
+using Sharp.Xmpp.Core;
 
 namespace Sharp.Xmpp.Extensions
 {
@@ -14,6 +15,6 @@ namespace Sharp.Xmpp.Extensions
         /// <param name="stanza">The stanza which is being received.</param>
         /// <returns>true to intercept the stanza or false to pass the stanza
         /// on to the next handler.</returns>
-        bool Input(T stanza);
+        Task<bool> Input(T stanza);
     }
 }

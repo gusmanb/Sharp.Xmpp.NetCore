@@ -2,6 +2,7 @@
 using Sharp.Xmpp.Im;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Sharp.Xmpp.Extensions
 {
@@ -54,7 +55,7 @@ namespace Sharp.Xmpp.Extensions
         /// <param name="stanza">The stanza which is being received.</param>
         /// <returns>true to intercept the stanza or false to pass the stanza
         /// on to the next handler.</returns>
-        public bool Input(Iq stanza)
+        public async Task<bool> Input(Iq stanza)
         {
             if (stanza.Type != IqType.Get)
                 return false;
@@ -72,7 +73,7 @@ namespace Sharp.Xmpp.Extensions
                 .Child(Xml.Element("tzo").Text(tzo))
                 .Child(Xml.Element("utc").Text(utc));
             // Send the IQ response.
-            im.IqResult(stanza, time);
+            await im.IqResult(stanza, time);
             return true;
         }
 
@@ -91,15 +92,15 @@ namespace Sharp.Xmpp.Extensions
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public DateTime GetTime(Jid jid)
+        public async Task<DateTime> GetTime(Jid jid)
         {
             jid.ThrowIfNull("jid");
-            if (!ecapa.Supports(jid, Extension.EntityTime))
+            if (!await ecapa.Supports(jid, Extension.EntityTime))
             {
                 throw new NotSupportedException("The XMPP entity does not support " +
                     "the 'Entity Time' extension.");
             }
-            Iq iq = im.IqRequest(IqType.Get, jid, im.Jid,
+            Iq iq = await im.IqRequest(IqType.Get, jid, im.Jid,
                 Xml.Element("time", "urn:xmpp:time"));
             if (iq.Type == IqType.Error)
                 throw Util.ExceptionFromError(iq, "The time could not be retrieved.");

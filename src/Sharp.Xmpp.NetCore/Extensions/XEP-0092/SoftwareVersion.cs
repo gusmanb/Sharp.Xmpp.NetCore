@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 
 namespace Sharp.Xmpp.Extensions
 {
@@ -65,7 +66,7 @@ namespace Sharp.Xmpp.Extensions
         /// <param name="stanza">The stanza which is being received.</param>
         /// <returns>true to intercept the stanza or false to pass the stanza
         /// on to the next handler.</returns>
-        public bool Input(Iq stanza)
+        public async Task<bool> Input(Iq stanza)
         {
             if (stanza.Type != IqType.Get)
                 return false;
@@ -77,7 +78,7 @@ namespace Sharp.Xmpp.Extensions
                 Xml.Element("name").Text(Version.Name)).Child(
                 Xml.Element("version").Text(Version.Version)).Child(
                 Xml.Element("os").Text(Version.Os));
-            im.IqResult(stanza, xml);
+            await im.IqResult(stanza, xml);
             // We took care of this IQ request, so intercept it and don't pass it
             // on to other handlers.
             return true;
@@ -100,15 +101,15 @@ namespace Sharp.Xmpp.Extensions
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public VersionInformation GetVersion(Jid jid)
+        public async Task<VersionInformation> GetVersion(Jid jid)
         {
             jid.ThrowIfNull("jid");
-            if (!ecapa.Supports(jid, Extension.SoftwareVersion))
+            if (!await ecapa.Supports(jid, Extension.SoftwareVersion))
             {
                 throw new NotSupportedException("The XMPP entity does not support the " +
                     "'Software Version' extension.");
             }
-            Iq response = im.IqRequest(IqType.Get, jid, im.Jid,
+            Iq response = await im.IqRequest(IqType.Get, jid, im.Jid,
                 Xml.Element("query", "jabber:iq:version"));
             if (response.Type == IqType.Error)
                 throw Util.ExceptionFromError(response, "The version could not be retrieved.");

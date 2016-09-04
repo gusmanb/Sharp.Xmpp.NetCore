@@ -1,6 +1,7 @@
 ﻿using Sharp.Xmpp.Im;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Sharp.Xmpp.Extensions
 {
@@ -46,7 +47,7 @@ namespace Sharp.Xmpp.Extensions
         /// <param name="stanza">The stanza which has been received.</param>
         /// <returns>true to intercept the stanza or false to pass the stanza
         /// on to the next handler.</returns>
-        public bool Input(Message stanza)
+        public async Task<bool> Input(Message stanza)
         {
             // Look for chat-state elements.
             foreach (ChatState state in Enum.GetValues(typeof(ChatState)))
@@ -72,14 +73,14 @@ namespace Sharp.Xmpp.Extensions
         /// <param name="state">The new chat-state.</param>
         /// <exception cref="ArgumentNullException">The jid parameter is
         /// null.</exception>
-        public void SetChatState(Jid jid, ChatState state)
+        public async Task SetChatState(Jid jid, ChatState state)
         {
             jid.ThrowIfNull("jid");
             Message m = new Message(jid);
             m.Type = MessageType.Chat;
             m.Data.Child(Xml.Element(state.ToString().ToLowerInvariant(),
                 "http://jabber.org/protocol/chatstates"));
-            im.SendMessage(m);
+            await im.SendMessage(m);
         }
 
         /// <summary>

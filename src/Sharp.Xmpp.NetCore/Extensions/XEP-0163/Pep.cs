@@ -3,6 +3,7 @@ using Sharp.Xmpp.Im;
 using System;
 using System.Collections.Generic;
 using System.Xml;
+using System.Threading.Tasks;
 
 namespace Sharp.Xmpp.Extensions
 {
@@ -60,13 +61,14 @@ namespace Sharp.Xmpp.Extensions
         /// <summary>
         /// Determines whether our server supports the personal eventing protocol.
         /// </summary>
-        public bool Supported
+        public Task<bool> Supported
         {
             get
             {
                 if (!initialized)
                     return QueryServer();
-                return supported;
+
+                return Task.FromResult<bool>(supported);
             }
         }
 
@@ -84,7 +86,7 @@ namespace Sharp.Xmpp.Extensions
         /// <param name="stanza">The stanza which is being received.</param>
         /// <returns>true to intercept the stanza or false to pass the stanza
         /// on to the next handler.</returns>
-        public bool Input(Im.Message stanza)
+        public async Task<bool> Input(Im.Message stanza)
         {
             var ev = stanza.Data["event"];
             if (ev == null || ev.NamespaceURI != "http://jabber.org/protocol/pubsub#event")
@@ -122,10 +124,10 @@ namespace Sharp.Xmpp.Extensions
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public void Publish(string node, string itemId = null, params XmlElement[] data)
+        public async Task Publish(string node, string itemId = null, params XmlElement[] data)
         {
             node.ThrowIfNull("node");
-            if (!Supported)
+            if (!await Supported)
             {
                 throw new NotSupportedException("The server does not support publishing " +
                     "of information.");
@@ -145,7 +147,7 @@ namespace Sharp.Xmpp.Extensions
                 if (!item.IsEmpty)
                     xml["publish"].Child(item);
             }
-            Iq iq = im.IqRequest(IqType.Set, null, im.Jid, xml);
+            Iq iq = await im.IqRequest(IqType.Set, null, im.Jid, xml);
             if (iq.Type == IqType.Error)
                 throw Util.ExceptionFromError(iq, "The data could not be published.");
         }
@@ -195,13 +197,13 @@ namespace Sharp.Xmpp.Extensions
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public IEnumerable<XmlElement> RetrieveItems(Jid jid, string node)
+        public async Task<IEnumerable<XmlElement>> RetrieveItems(Jid jid, string node)
         {
             jid.ThrowIfNull("jid");
             node.ThrowIfNull("node");
             var xml = Xml.Element("pubsub", "http://jabber.org/protocol/pubsub")
                 .Child(Xml.Element("items").Attr("node", node));
-            Iq iq = im.IqRequest(IqType.Get, jid, im.Jid, xml);
+            Iq iq = await im.IqRequest(IqType.Get, jid, im.Jid, xml);
             if (iq.Type == IqType.Error)
                 throw Util.ExceptionFromError(iq, "The items could not be retrieved.");
             var pubsub = iq.Data["pubsub"];
@@ -231,7 +233,7 @@ namespace Sharp.Xmpp.Extensions
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public XmlElement RetrieveItem(Jid jid, string node, string itemId)
+        public async Task<XmlElement> RetrieveItem(Jid jid, string node, string itemId)
         {
             jid.ThrowIfNull("jid");
             node.ThrowIfNull("node");
@@ -240,7 +242,7 @@ namespace Sharp.Xmpp.Extensions
                 Xml.Element("items").Attr("node", node).Child(
                 Xml.Element("item").Attr("id", itemId))
             );
-            Iq iq = im.IqRequest(IqType.Get, jid, im.Jid, xml);
+            Iq iq = await im.IqRequest(IqType.Get, jid, im.Jid, xml);
             if (iq.Type == IqType.Error)
                 throw Util.ExceptionFromError(iq, "The item could not be retrieved.");
             var pubsub = iq.Data["pubsub"];
@@ -269,10 +271,10 @@ namespace Sharp.Xmpp.Extensions
         /// </summary>
         /// <returns>true if our server supports the PEP profile; Otherwise
         /// false.</returns>
-        private bool QueryServer()
+        private async Task<bool> QueryServer()
         {
             // See if our own server advertises the pubsub identity.
-            foreach (var ident in ecapa.GetIdentities(im.Jid.GetBareJid()))
+            foreach (var ident in await ecapa.GetIdentities(im.Jid.GetBareJid()))
             {
                 if (ident.Type == "pep" && ident.Category == "pubsub")
                     supported = true;

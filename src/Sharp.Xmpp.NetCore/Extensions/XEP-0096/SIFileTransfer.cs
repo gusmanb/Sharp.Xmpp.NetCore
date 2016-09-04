@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Xml;
+using System.Threading.Tasks;
 
 namespace Sharp.Xmpp.Extensions
 {
@@ -211,13 +212,13 @@ namespace Sharp.Xmpp.Extensions
         /// condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or
         /// another unspecified XMPP error occurred.</exception>
-        public string InitiateFileTransfer(Jid to, string path,
-            string description = null, Action<bool, FileTransfer> cb = null)
+        public async Task<string> InitiateFileTransfer(Jid to, string path,
+            string description = null, Func<bool, FileTransfer, Task> cb = null)
         {
             to.ThrowIfNull("to");
             path.ThrowIfNull("path");
             FileInfo info = new FileInfo(path);
-            return InitiateFileTransfer(to, File.OpenRead(path), info.Name, info.Length,
+            return await InitiateFileTransfer(to, File.OpenRead(path), info.Name, info.Length,
                 description, cb);
         }
 
@@ -249,8 +250,8 @@ namespace Sharp.Xmpp.Extensions
         /// condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or
         /// another unspecified XMPP error occurred.</exception>
-        public string InitiateFileTransfer(Jid to, Stream stream, string name, long size,
-            string description = null, Action<bool, FileTransfer> cb = null)
+        public async Task<string> InitiateFileTransfer(Jid to, Stream stream, string name, long size,
+            string description = null, Func<bool, FileTransfer, Task> cb = null)
         {
             to.ThrowIfNull("to");
             stream.ThrowIfNull("stream");
@@ -264,10 +265,13 @@ namespace Sharp.Xmpp.Extensions
             //FIXME FIXME
             // Perform stream-initiation asynchronously so that the caller is not
             // blocked until the other site has either accepted or rejected our offer.
-            return InitiateStreamAsync(to, name, size, description, (result, iq) =>
+
+            Func<InitiationResult, Iq, Task> call = async (result, iq) =>
             {
-                OnInitiationResult(result, to, name, stream, size, description, cb);
-            });
+                await OnInitiationResult(result, to, name, stream, size, description, cb);
+            };
+
+            return await InitiateStreamAsync(to, name, size, description,call);
         }
 
         /// <summary>
@@ -472,8 +476,8 @@ namespace Sharp.Xmpp.Extensions
         /// XmppErrorException to obtain the specific error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        private string InitiateStreamAsync(Jid to, string name, long size,
-            string description = null, Action<InitiationResult, Iq> cb = null)
+        private async Task<string> InitiateStreamAsync(Jid to, string name, long size,
+            string description = null, Func<InitiationResult, Iq, Task> cb = null)
         {
             // Construct the 'file' element which is mandatory for the SI file-transfer
             // profile.
@@ -486,7 +490,7 @@ namespace Sharp.Xmpp.Extensions
             // Collect namespaces of stream-methods that we can offer the other site.
             var methods = GetStreamMethods();
             // Try to initiate an XMPP data-stream.
-            return streamInitiation.InitiateStreamAsync(to, mimeType,
+            return await streamInitiation.InitiateStreamAsync(to, mimeType,
                 "http://jabber.org/protocol/si/profile/file-transfer", methods, file, cb);
         }
 
@@ -506,8 +510,8 @@ namespace Sharp.Xmpp.Extensions
         /// <param name="description">A description of the file so the receiver can
         /// better understand what is being sent.</param>
         /// <remarks>This is called in the context of an arbitrary thread.</remarks>
-        private void OnInitiationResult(InitiationResult result, Jid to, string name,
-            Stream stream, long size, string description, Action<bool, FileTransfer> cb)
+        private async Task OnInitiationResult(InitiationResult result, Jid to, string name,
+            Stream stream, long size, string description, Func<bool, FileTransfer, Task> cb)
         {
             FileTransfer transfer = new FileTransfer(im.Jid, to, name, size, null,
                 description);
@@ -524,11 +528,11 @@ namespace Sharp.Xmpp.Extensions
                 metaData.TryAdd(result.SessionId, new FileMetaData(name, description));
                 // Invoke user-provided callback.
                 if (cb != null)
-                    cb.Invoke(true, transfer);
+                    await cb(true, transfer);
                 // Perform the actual data-transfer.
                 try
                 {
-                    ext.Transfer(session);
+                    await ext.Transfer(session);
                 }
                 catch (Exception e)
                 {
@@ -541,7 +545,7 @@ namespace Sharp.Xmpp.Extensions
                 // Something went wrong. Invoke user-provided callback to let them know
                 // the file-transfer can't be performed.
                 if (cb != null)
-                    cb.Invoke(false, transfer);
+                    await cb(false, transfer);
             }
         }
 

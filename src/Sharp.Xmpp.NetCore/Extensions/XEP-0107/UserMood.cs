@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Xml;
+using System.Threading.Tasks;
 
 namespace Sharp.Xmpp.Extensions
 {
@@ -48,7 +49,7 @@ namespace Sharp.Xmpp.Extensions
         /// Determines whether our server supports personal eventing and thusly
         /// the user mood extension.
         /// </summary>
-        public bool Supported
+        public Task<bool> Supported
         {
             get
             {
@@ -78,13 +79,13 @@ namespace Sharp.Xmpp.Extensions
         /// mood to.</param>
         /// <param name="description">A natural-language description of, or reason
         /// for, the mood.</param>
-        public void SetMood(Mood mood, string description = null)
+        public async Task SetMood(Mood mood, string description = null)
         {
             var xml = Xml.Element("mood", "http://jabber.org/protocol/mood")
                 .Child(Xml.Element(MoodToTagName(mood)));
             if (description != null)
                 xml.Child(Xml.Element("text").Text(description));
-            pep.Publish("http://jabber.org/protocol/mood", null, xml);
+            await pep.Publish("http://jabber.org/protocol/mood", null, xml);
         }
 
         /// <summary>

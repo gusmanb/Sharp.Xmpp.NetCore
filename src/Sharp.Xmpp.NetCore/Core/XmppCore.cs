@@ -36,7 +36,7 @@ namespace Sharp.Xmpp.Core
         /// <summary>
         /// Bool variable indicating whether DNS records are initialised
         /// </summary>
-        private bool dnsIsInit = false;
+        private bool dnsIsInit;
 
         /// <summary>
         /// The TCP connection to the XMPP server.
@@ -91,7 +91,7 @@ namespace Sharp.Xmpp.Core
         /// <summary>
         /// Write lock for the network stream.
         /// </summary>
-        private readonly object writeLock = new object();
+        private readonly SemaphoreSlim writeLock = new SemaphoreSlim(1,1);
 
         /// <summary>
         /// The default Time Out for IQ Requests
@@ -101,7 +101,7 @@ namespace Sharp.Xmpp.Core
         /// <summary>
         /// The default value for debugging stanzas is false
         /// </summary>
-        private bool debugStanzas = false;
+        private bool debugStanzas;
 
         /// <summary>
         /// A thread-safe dictionary of wait handles for pending IQ requests.
@@ -118,8 +118,8 @@ namespace Sharp.Xmpp.Core
         /// <summary>
         /// A thread-safe dictionary of callback methods for asynchronous IQ requests.
         /// </summary>
-        private ConcurrentDictionary<string, Action<string, Iq>> iqCallbacks =
-         new ConcurrentDictionary<string, Action<string, Iq>>();
+        private ConcurrentDictionary<string, Func<string, Iq, Task>> iqCallbacks =
+         new ConcurrentDictionary<string, Func<string, Iq, Task>>();
 
         /// <summary>
         /// A cancellation token source that is set when the listener threads shuts
@@ -303,22 +303,22 @@ namespace Sharp.Xmpp.Core
         /// <summary>
         /// The event that is raised when an unrecoverable error condition occurs.
         /// </summary>
-        public event EventHandler<ErrorEventArgs> Error;
+        public event AsyncEventHandler<ErrorEventArgs> Error;
 
         /// <summary>
         /// The event that is raised when an IQ-request stanza has been received.
         /// </summary>
-        public event EventHandler<IqEventArgs> Iq;
+        public event AsyncEventHandler<IqEventArgs> Iq;
 
         /// <summary>
         /// The event that is raised when a Message stanza has been received.
         /// </summary>
-        public event EventHandler<MessageEventArgs> Message;
+        public event AsyncEventHandler<MessageEventArgs> Message;
 
         /// <summary>
         /// The event that is raised when a Presence stanza has been received.
         /// </summary>
-        public event EventHandler<PresenceEventArgs> Presence;
+        public event AsyncEventHandler<PresenceEventArgs> Presence;
 
         /// <summary>
         /// Creates the core.
@@ -397,7 +397,7 @@ namespace Sharp.Xmpp.Core
             dnsIsInit = true;
             
             //Update to use DnDnsCore
-            DnsQueryRequest request = new DnsQueryRequest();
+            var request = new DnsQueryRequest();
             var results = await request.Resolve("_xmpp-client._tcp." + domain, DnDnsCore.Enums.NsType.SRV, DnDnsCore.Enums.NsClass.ANY, ProtocolType.Tcp);
             
             dnsRecordList = results.Answers.Where(a => a.DnsHeader.NsType == DnDnsCore.Enums.NsType.SRV)
@@ -502,7 +502,7 @@ namespace Sharp.Xmpp.Core
             // reconnect.
             Username = username;
             Password = password;
-            Disconnect();
+            await Disconnect();
             await Connect(this.resource);
         }
 
@@ -522,11 +522,11 @@ namespace Sharp.Xmpp.Core
         /// connected to a remote host.</exception>
         /// <exception cref="IOException">There was a failure while writing to the
         /// network.</exception>
-        public void SendMessage(Jid to = null, Jid from = null, XmlElement data = null,
+        public async Task SendMessage(Jid to = null, Jid from = null, XmlElement data = null,
             string id = null, CultureInfo language = null)
         {
             AssertValid();
-            Send(new Message(to, from, data, id, language));
+            await Send(new Message(to, from, data, id, language));
         }
 
         /// <summary>
@@ -541,11 +541,11 @@ namespace Sharp.Xmpp.Core
         /// connected to a remote host.</exception>
         /// <exception cref="IOException">There was a failure while writing to the
         /// network.</exception>
-        public void SendMessage(Message message)
+        public async Task SendMessage(Message message)
         {
             AssertValid();
             message.ThrowIfNull("message");
-            Send(message);
+            await Send(message);
         }
 
         /// <summary>
@@ -564,11 +564,11 @@ namespace Sharp.Xmpp.Core
         /// connected to a remote host.</exception>
         /// <exception cref="IOException">There was a failure while writing to the
         /// network.</exception>
-        public void SendPresence(Jid to = null, Jid from = null, string id = null,
+        public async Task SendPresence(Jid to = null, Jid from = null, string id = null,
             CultureInfo language = null, params XmlElement[] data)
         {
             AssertValid();
-            Send(new Presence(to, from, id, language, data));
+            await Send(new Presence(to, from, id, language, data));
         }
 
         /// <summary>
@@ -583,11 +583,11 @@ namespace Sharp.Xmpp.Core
         /// connected to a remote host.</exception>
         /// <exception cref="IOException">There was a failure while writing to the
         /// network.</exception>
-        public void SendPresence(Presence presence)
+        public async Task SendPresence(Presence presence)
         {
             AssertValid();
             presence.ThrowIfNull("presence");
-            Send(presence);
+            await Send(presence);
         }
 
         /// <summary>
@@ -616,12 +616,12 @@ namespace Sharp.Xmpp.Core
         /// network, or there was a failure reading from the network.</exception>
         /// <exception cref="TimeoutException">A timeout was specified and it
         /// expired.</exception>
-        public Iq IqRequest(IqType type, Jid to = null, Jid from = null,
+        public async Task<Iq> IqRequest(IqType type, Jid to = null, Jid from = null,
             XmlElement data = null, CultureInfo language = null,
             int millisecondsTimeout = -1)
         {
             AssertValid();
-            return IqRequest(new Iq(type, null, to, from, data, language), millisecondsTimeout);
+            return await IqRequest(new Iq(type, null, to, from, data, language), millisecondsTimeout);
         }
 
         /// <summary>
@@ -645,7 +645,7 @@ namespace Sharp.Xmpp.Core
         /// network, or there was a failure reading from the network.</exception>
         /// <exception cref="TimeoutException">A timeout was specified and it
         /// expired.</exception>
-        public Iq IqRequest(Iq request, int millisecondsTimeout = -1)
+        public async Task<Iq> IqRequest(Iq request, int millisecondsTimeout = -1)
         {
             int timeOut = -1;
             AssertValid();
@@ -659,12 +659,12 @@ namespace Sharp.Xmpp.Core
             else timeOut = millisecondsTimeout;
             // Generate a unique ID for the IQ request.
             request.Id = GetId();
-            AutoResetEvent ev = new AutoResetEvent(false);
-            Send(request);
+            var ev = new AutoResetEvent(false);
+            await Send(request);
             // Wait for event to be signaled by task that processes the incoming
             // XML stream.
             waitHandles[request.Id] = ev;
-            int index = WaitHandle.WaitAny(new WaitHandle[] { ev, cancelIq.Token.WaitHandle },
+            var index = WaitHandle.WaitAny(new WaitHandle[] { ev, cancelIq.Token.WaitHandle },
                 timeOut);
             if (index == WaitHandle.WaitTimeout)
             {
@@ -676,12 +676,12 @@ namespace Sharp.Xmpp.Core
                 //Make sure that its a request towards the server and not towards any client
                 var ping = request.Data["ping"];
 
-                if (request.To.Domain == Jid.Domain && (request.To.Node == null || request.To.Node == "") && (ping != null && ping.NamespaceURI == "urn:xmpp:ping"))
+                if (request.To.Domain == Jid.Domain && string.IsNullOrEmpty(request.To.Node) && (ping != null && ping.NamespaceURI == "urn:xmpp:ping"))
                 {
                     Connected = false;
                     var e = new XmppDisconnectionException("Timeout Disconnection happened at IqRequest");
                     if (!disposed)
-                        Error.Raise(this, new ErrorEventArgs(e));
+                        await Error(this, new ErrorEventArgs(e));
                     //throw new TimeoutException();
                 }
 
@@ -721,12 +721,12 @@ namespace Sharp.Xmpp.Core
         /// connected to a remote host.</exception>
         /// <exception cref="IOException">There was a failure while writing to the
         /// network.</exception>
-        public string IqRequestAsync(IqType type, Jid to = null, Jid from = null,
+        public async Task<string> IqRequestAsync(IqType type, Jid to = null, Jid from = null,
             XmlElement data = null, CultureInfo language = null,
-            Action<string, Iq> callback = null)
+            Func<string, Iq, Task> callback = null)
         {
             AssertValid();
-            return IqRequestAsync(new Iq(type, null, to, from, data, language), callback);
+            return await IqRequestAsync(new Iq(type, null, to, from, data, language), callback);
         }
 
         /// <summary>
@@ -746,7 +746,7 @@ namespace Sharp.Xmpp.Core
         /// connected to a remote host.</exception>
         /// <exception cref="IOException">There was a failure while writing to the
         /// network.</exception>
-        public string IqRequestAsync(Iq request, Action<string, Iq> callback = null)
+        public async Task<string> IqRequestAsync(Iq request, Func<string, Iq, Task> callback = null)
         {
             AssertValid();
             request.ThrowIfNull("request");
@@ -756,7 +756,7 @@ namespace Sharp.Xmpp.Core
             // Register the callback.
             if (callback != null)
                 iqCallbacks[request.Id] = callback;
-            Send(request);
+            await Send(request);
             return request.Id;
         }
 
@@ -779,11 +779,11 @@ namespace Sharp.Xmpp.Core
         /// connected to a remote host.</exception>
         /// <exception cref="IOException">There was a failure while writing to the
         /// network.</exception>
-        public void IqResponse(IqType type, string id, Jid to = null, Jid from = null,
+        public async Task IqResponse(IqType type, string id, Jid to = null, Jid from = null,
             XmlElement data = null, CultureInfo language = null)
         {
             AssertValid();
-            IqResponse(new Iq(type, id, to, from, data, null));
+            await IqResponse(new Iq(type, id, to, from, data, null));
         }
 
         /// <summary>
@@ -800,13 +800,13 @@ namespace Sharp.Xmpp.Core
         /// connected to a remote host.</exception>
         /// <exception cref="IOException">There was a failure while writing to the
         /// network.</exception>
-        public void IqResponse(Iq response)
+        public async Task IqResponse(Iq response)
         {
             AssertValid();
             response.ThrowIfNull("response");
             if (response.Type != IqType.Result && response.Type != IqType.Error)
                 throw new ArgumentException("The IQ type must be either 'result' or 'error'.");
-            Send(response);
+            await Send(response);
         }
 
         /// <summary>
@@ -817,12 +817,12 @@ namespace Sharp.Xmpp.Core
         /// connected to a remote host.</exception>
         /// <exception cref="IOException">There was a failure while writing to the
         /// network.</exception>
-        public void Close()
+        public async Task Close()
         {
             //FIXME, instead of asert valid I have ifs, only for the closing
             //AssertValid();
             // Close the XML stream.
-            if (Connected) Disconnect();
+            if (Connected) await Disconnect();
             if (!disposed) Dispose();
         }
 
@@ -894,7 +894,7 @@ namespace Sharp.Xmpp.Core
         private async Task SetupConnection(string resource = null)
         {
             // Request the initial stream.
-            XmlElement feats = InitiateStream(Hostname);
+            XmlElement feats = await InitiateStream(Hostname);
             // Server supports TLS/SSL via STARTTLS.
             if (feats["starttls"] != null)
             {
@@ -921,11 +921,11 @@ namespace Sharp.Xmpp.Core
             // Continue with SASL authentication.
             try
             {
-                feats = Authenticate(list, Username, Password, Hostname);
+                feats = await Authenticate(list, Username, Password, Hostname);
                 // FIXME: How is the client's JID constructed if the server does not support
                 // resource binding?
                 if (feats["bind"] != null)
-                    Jid = BindResource(resource);
+                    Jid = await BindResource(resource);
             }
             catch (SaslException e)
             {
@@ -946,14 +946,14 @@ namespace Sharp.Xmpp.Core
         /// XML-stream in it's 'xml:lang' attribute could not be found.</exception>
         /// <exception cref="IOException">There was a failure while writing to the
         /// network, or there was a failure while reading from the network.</exception>
-        private XmlElement InitiateStream(string hostname)
+        private async Task<XmlElement> InitiateStream(string hostname)
         {
             var xml = Xml.Element("stream:stream", "jabber:client")
                 .Attr("to", hostname)
                 .Attr("version", "1.0")
                 .Attr("xmlns:stream", "http://etherx.jabber.org/streams")
                 .Attr("xml:lang", CultureInfo.CurrentCulture.Name);
-            Send(xml.ToXmlString(xmlDeclaration: true, leaveOpen: true));
+            await Send(xml.ToXmlString(xmlDeclaration: true, leaveOpen: true));
             // Create a new parser instance.
             if (parser != null)
                 parser.Close();
@@ -987,16 +987,16 @@ namespace Sharp.Xmpp.Core
             RemoteCertificateValidationCallback validate)
         {
             // Send STARTTLS command and ensure the server acknowledges the request.
-            SendAndReceive(Xml.Element("starttls",
+            await SendAndReceive(Xml.Element("starttls",
                 "urn:ietf:params:xml:ns:xmpp-tls"), "proceed");
             // Complete TLS negotiation and switch to secure stream.
-            SslStream sslStream = new SslStream(stream, false, validate ??
+            var sslStream = new SslStream(stream, false, validate ??
                 ((sender, cert, chain, err) => true));
             await sslStream.AuthenticateAsClientAsync(hostname);
             stream = sslStream;
             IsEncrypted = true;
             // Initiate a new stream to server.
-            return InitiateStream(hostname);
+            return await InitiateStream(hostname);
         }
 
         /// <summary>
@@ -1017,17 +1017,17 @@ namespace Sharp.Xmpp.Core
         /// XML-stream in it's 'xml:lang' attribute could not be found.</exception>
         /// <exception cref="IOException">There was a failure while writing to the
         /// network, or there was a failure while reading from the network.</exception>
-        private XmlElement Authenticate(IEnumerable<string> mechanisms, string username,
+        private async Task<XmlElement> Authenticate(IEnumerable<string> mechanisms, string username,
             string password, string hostname)
         {
-            string name = SelectMechanism(mechanisms);
-            SaslMechanism m = SaslFactory.Create(name);
+            var name = SelectMechanism(mechanisms);
+            var m = SaslFactory.Create(name);
             m.Properties.Add("Username", username);
             m.Properties.Add("Password", password);
             var xml = Xml.Element("auth", "urn:ietf:params:xml:ns:xmpp-sasl")
                 .Attr("mechanism", name)
                 .Text(m.HasInitial ? m.GetResponse(String.Empty) : String.Empty);
-            Send(xml);
+            await Send(xml);
             while (true)
             {
                 XmlElement ret = parser.NextElement("challenge", "success", "failure");
@@ -1048,12 +1048,12 @@ namespace Sharp.Xmpp.Core
                 }
                 xml = Xml.Element("response",
                     "urn:ietf:params:xml:ns:xmpp-sasl").Text(response);
-                Send(xml);
+                await Send(xml);
             }
             // The instance is now authenticated.
             Authenticated = true;
             // Finally, initiate a new XML-stream.
-            return InitiateStream(hostname);
+            return await InitiateStream(hostname);
         }
 
         /// <summary>
@@ -1091,7 +1091,7 @@ namespace Sharp.Xmpp.Core
         /// or unexpected XML data.</exception>
         /// <exception cref="IOException">There was a failure while writing to the
         /// network, or there was a failure while reading from the network.</exception>
-        private Jid BindResource(string resourceName = null)
+        private async Task<Jid> BindResource(string resourceName = null)
         {
             var xml = Xml.Element("iq")
                 .Attr("type", "set")
@@ -1100,7 +1100,7 @@ namespace Sharp.Xmpp.Core
             if (resourceName != null)
                 bind.Child(Xml.Element("resource").Text(resourceName));
             xml.Child(bind);
-            XmlElement res = SendAndReceive(xml, "iq");
+            XmlElement res = await SendAndReceive(xml, "iq");
             if (res["bind"] == null || res["bind"]["jid"] == null)
                 throw new XmppException("Erroneous server response.");
             return new Jid(res["bind"]["jid"].InnerText);
@@ -1114,10 +1114,10 @@ namespace Sharp.Xmpp.Core
         /// is null.</exception>
         /// <exception cref="IOException">There was a failure while writing
         /// to the network.</exception>
-        private void Send(XmlElement element)
+        private async Task Send(XmlElement element)
         {
             element.ThrowIfNull("element");
-            Send(element.ToXmlString());
+            await Send(element.ToXmlString());
         }
 
         /// <summary>
@@ -1127,27 +1127,32 @@ namespace Sharp.Xmpp.Core
         /// <exception cref="ArgumentNullException">The xml parameter is null.</exception>
         /// <exception cref="IOException">There was a failure while writing to
         /// the network.</exception>
-        private void Send(string xml)
+        private async Task Send(string xml)
         {
             xml.ThrowIfNull("xml");
             // XMPP is guaranteed to be UTF-8.
             byte[] buf = Encoding.UTF8.GetBytes(xml);
-            lock (writeLock)
+
+            await writeLock.WaitAsync();
+
+            //FIXME
+            //If we have an IOexception immediatelly we make a disconnection, is it correct?
+            try
             {
-                //FIXME
-                //If we have an IOexception immediatelly we make a disconnection, is it correct?
-                try
-                {
-                    stream.Write(buf, 0, buf.Length);
-                    if (debugStanzas) System.Diagnostics.Debug.WriteLine(xml);
-                }
-                catch (IOException e)
-                {
-                    Connected = false;
-                    throw new XmppDisconnectionException(e.Message, e);
-                }
-                //FIXME
+                await stream.WriteAsync(buf, 0, buf.Length);
+                if (debugStanzas) System.Diagnostics.Debug.WriteLine(xml);
             }
+            catch (IOException e)
+            {
+                Connected = false;
+                throw new XmppDisconnectionException(e.Message, e);
+            }
+            finally
+            {
+                writeLock.Release();
+            }
+                //FIXME
+            
         }
 
         /// <summary>
@@ -1157,10 +1162,10 @@ namespace Sharp.Xmpp.Core
         /// <exception cref="ArgumentNullException">The stanza parameter is null.</exception>
         /// <exception cref="IOException">There was a failure while writing to
         /// the network.</exception>
-        private void Send(Stanza stanza)
+        private async Task Send(Stanza stanza)
         {
             stanza.ThrowIfNull("stanza");
-            Send(stanza.ToString());
+            await Send(stanza.ToString());
         }
 
         /// <summary>
@@ -1177,10 +1182,10 @@ namespace Sharp.Xmpp.Core
         /// <exception cref="ArgumentNullException">The element parameter is null.</exception>
         /// <exception cref="IOException">There was a failure while writing to
         /// the network, or there was a failure while reading from the network.</exception>
-        private XmlElement SendAndReceive(XmlElement element,
+        private async Task<XmlElement> SendAndReceive(XmlElement element,
             params string[] expected)
         {
-            Send(element);
+            await Send(element);
             try
             {
                 return parser.NextElement(expected);
@@ -1197,7 +1202,7 @@ namespace Sharp.Xmpp.Core
         /// </summary>
         /// <remarks>This runs in the context of a separate thread. In case of an
         /// exception, the Error event is raised and the thread is shutdown.</remarks>
-        private void ReadXmlStream()
+        private async Task ReadXmlStream()
         {
             try
             {
@@ -1212,7 +1217,7 @@ namespace Sharp.Xmpp.Core
                             if (iq.IsRequest)
                                 stanzaQueue.Add(iq);
                             else
-                                HandleIqResponse(iq);
+                                await HandleIqResponse(iq);
                             break;
 
                         case "message":
@@ -1242,7 +1247,7 @@ namespace Sharp.Xmpp.Core
                 }
                 // Raise the error event.
                 if (!disposed)
-                    Error.Raise(this, new ErrorEventArgs(e));
+                    await Error(this, new ErrorEventArgs(e));
             }
         }
 
@@ -1252,7 +1257,7 @@ namespace Sharp.Xmpp.Core
         /// </summary>
         /// <remarks>This runs in the context of a separate thread. All stanza events
         /// are streamlined and execute in the context of this thread.</remarks>
-        private void DispatchEvents()
+        private async Task DispatchEvents()
         {
             while (true)
             {
@@ -1261,11 +1266,11 @@ namespace Sharp.Xmpp.Core
                     Stanza stanza = stanzaQueue.Take(cancelDispatch.Token);
                     if (debugStanzas) System.Diagnostics.Debug.WriteLine(stanza.ToString());
                     if (stanza is Iq)
-                        Iq.Raise(this, new IqEventArgs(stanza as Iq));
+                        await Iq(this, new IqEventArgs(stanza as Iq));
                     else if (stanza is Message)
-                        Message.Raise(this, new MessageEventArgs(stanza as Message));
+                        await Message(this, new MessageEventArgs(stanza as Message));
                     else if (stanza is Presence)
-                        Presence.Raise(this, new PresenceEventArgs(stanza as Presence));
+                        await Presence(this, new PresenceEventArgs(stanza as Presence));
                 }
                 catch (OperationCanceledException)
                 {
@@ -1276,7 +1281,7 @@ namespace Sharp.Xmpp.Core
                 {
                     // FIXME: What should we do if an exception is thrown in one of the
                     // event handlers?
-                    System.Diagnostics.Debug.WriteLine("Error in XMPP Core: " + e.StackTrace + e.ToString());
+                    System.Diagnostics.Debug.WriteLine("Error in XMPP Core: " + e.StackTrace + e);
                     //throw e;
                 }
             }
@@ -1286,18 +1291,18 @@ namespace Sharp.Xmpp.Core
         /// Handles incoming IQ responses for previously issued IQ requests.
         /// </summary>
         /// <param name="iq">The received IQ response stanza.</param>
-        private void HandleIqResponse(Iq iq)
+        private async Task HandleIqResponse(Iq iq)
         {
             string id = iq.Id;
             AutoResetEvent ev;
-            Action<string, Iq> cb;
+            Func<string, Iq, Task> cb;
             iqResponses[id] = iq;
             // Signal the event if it's a blocking call.
             if (waitHandles.TryRemove(id, out ev))
                 ev.Set();
             // Call the callback if it's an asynchronous call.
             else if (iqCallbacks.TryRemove(id, out cb))
-                Task.Run(() => { cb(id, iq); });
+                await cb(id, iq); //Task.Run(() => { cb(id, iq); });
         }
 
         /// <summary>
@@ -1313,12 +1318,12 @@ namespace Sharp.Xmpp.Core
         /// <summary>
         /// Disconnects from the XMPP server.
         /// </summary>
-        private void Disconnect()
+        private async Task Disconnect()
         {
             if (!Connected)
                 return;
             // Close the XML stream.
-            Send("</stream:stream>");
+            await Send("</stream:stream>");
             Connected = false;
             Authenticated = false;
         }

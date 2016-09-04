@@ -3,6 +3,7 @@ using Sharp.Xmpp.Im;
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Threading.Tasks;
 
 namespace Sharp.Xmpp.Extensions
 {
@@ -60,14 +61,14 @@ namespace Sharp.Xmpp.Extensions
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public IPAddress GetExternalAddress()
+        public async Task<IPAddress> GetExternalAddress()
         {
-            if (!ecapa.Supports(im.Jid.Domain, Extension.ServerIpCheck))
+            if (!await ecapa.Supports(im.Jid.Domain, Extension.ServerIpCheck))
             {
                 throw new NotSupportedException("The XMPP server does not support " +
                     "the 'Server IP Check' extension.");
             }
-            Iq iq = im.IqRequest(IqType.Get, null, im.Jid,
+            Iq iq = await im.IqRequest(IqType.Get, null, im.Jid,
                 Xml.Element("address", "urn:xmpp:sic:1"));
             if (iq.Type == IqType.Error)
                 throw Util.ExceptionFromError(iq, "The external IP address could not " +

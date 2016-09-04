@@ -9,6 +9,7 @@ using System.Xml.Linq;
 using System.Linq;
 using Sharp.Xmpp.Extensions;
 using Sharp.Xmpp;
+using System.Threading.Tasks;
 
 namespace S22.Xmpp.Extensions
 {
@@ -65,20 +66,20 @@ namespace S22.Xmpp.Extensions
 		/// <param name="stanza">The stanza which is being received.</param>
 		/// <returns>true to intercept the stanza or false to pass the stanza
 		/// on to the next handler.</returns>
-		public bool Input(Iq stanza) {
+		public async Task<bool> Input(Iq stanza) {
 			if (stanza.Type != IqType.Get)
 				return false;
 			var vcard = stanza.Data["vCard "];
 			if (vcard == null || vcard.NamespaceURI != "vcard-temp")
 				return false;
-			im.IqResult(stanza);
+			await im.IqResult(stanza);
 			// We took care of this IQ request, so intercept it and don't pass it
 			// on to other handlers.
 			return true;
 		}
 
         //http://www.xmpp.org/extensions/xep-0153.html
-        public void SetAvatar(Stream stream)
+        public async Task SetAvatar(Stream stream)
         {
             stream.ThrowIfNull("stream");
 
@@ -97,14 +98,18 @@ namespace S22.Xmpp.Extensions
                 base64Data = Convert.ToBase64String(data);
             }
             var xml = Xml.Element("vCard", "vcard-temp").Child(Xml.Element("Photo").Child(Xml.Element("Type").Text(mimeType)).Child(Xml.Element("BINVAL").Text(base64Data)));
-            im.IqRequestAsync(IqType.Set, null, im.Jid, xml,null,(id, iq) => {
 
-				if (iq.Type == IqType.Result) {
-					// Result must contain a 'feature' element.
-                    im.SendPresence(new Sharp.Xmpp.Im.Presence(null, null, PresenceType.Available, null, null, Xml.Element("x", "vcard-temp:x:update").Child(Xml.Element("photo").Text(hash))));
-				}
-	
-			});
+            Func<string, Iq, Task> call = async (id, iq) => {
+
+                if (iq.Type == IqType.Result)
+                {
+                    // Result must contain a 'feature' element.
+                    await im.SendPresence(new Sharp.Xmpp.Im.Presence(null, null, PresenceType.Available, null, null, Xml.Element("x", "vcard-temp:x:update").Child(Xml.Element("photo").Text(hash))));
+                }
+
+            };
+
+            await im.IqRequestAsync(IqType.Set, null, im.Jid, xml,null, call);
 
             //var result = im.IqRequest(IqType.Set, null, im.Jid, xml);
             //            
@@ -148,15 +153,15 @@ namespace S22.Xmpp.Extensions
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public void RequestAvatar(Jid jid, string filepath, Action callback)
+        public async Task RequestAvatar(Jid jid, string filepath, Action callback)
         {
             jid.ThrowIfNull("jid");
             //Make the request
-            var xml = Xml.Element("vCard", "vcard-temp"); 
-    
-            //var result = im.IqRequest(IqType.Get, jid, im.Jid, xml);
-            im.IqRequestAsync(IqType.Get, jid, im.Jid, xml,null, (id, iq) => {
-                
+            var xml = Xml.Element("vCard", "vcard-temp");
+
+            Func<string, Iq, Task> call = async (id, iq) =>
+            {
+
                 XmlElement query = iq.Data["vCard"];
                 if (iq.Data["vCard"].NamespaceURI == "vcard-temp")
                 {
@@ -186,7 +191,7 @@ namespace S22.Xmpp.Extensions
 
                                     using (var file = new FileStream(filepath, FileMode.Create, System.IO.FileAccess.Write))
                                     {
-                                        file.Write(data, 0, data.Length);
+                                        await file.WriteAsync(data, 0, data.Length);
                                     }
                                     if (callback != null)
                                     {
@@ -200,12 +205,12 @@ namespace S22.Xmpp.Extensions
                             }
                         }
                     }
+
                 }
-	
-			});
-            //Check the result
-            
-    
+            };
+
+            await im.IqRequestAsync(IqType.Get, jid, im.Jid, xml, null, call);
+
         }
 
 		

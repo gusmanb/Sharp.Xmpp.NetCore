@@ -694,14 +694,14 @@ namespace Sharp.Xmpp.Client
         /// <exception cref="ObjectDisposedException">The XmppClient object has been
         /// disposed.</exception>
         /// <include file='Examples.xml' path='S22/Xmpp/Client/XmppClient[@name="SendMessage-1"]/*'/>
-        public void SendMessage(Jid to, string body, string subject = null,
+        public async Task SendMessage(Jid to, string body, string subject = null,
             string thread = null, MessageType type = MessageType.Normal,
             CultureInfo language = null)
         {
             AssertValid();
             to.ThrowIfNull("to");
             body.ThrowIfNullOrEmpty("body");
-            im.SendMessage(to, body, subject, thread, type, language);
+            await im.SendMessage(to, body, subject, thread, type, language);
         }
 
         /// <summary>
@@ -734,14 +734,14 @@ namespace Sharp.Xmpp.Client
         /// message content in several distinct languages.
         /// </remarks>
         /// <include file='Examples.xml' path='S22/Xmpp/Client/XmppClient[@name="SendMessage-2"]/*'/>
-        public void SendMessage(Jid to, IDictionary<string, string> bodies,
+        public async Task SendMessage(Jid to, IDictionary<string, string> bodies,
             IDictionary<string, string> subjects = null, string thread = null,
             MessageType type = MessageType.Normal, CultureInfo language = null)
         {
             AssertValid();
             to.ThrowIfNull("to");
             bodies.ThrowIfNull("bodies");
-            im.SendMessage(to, bodies, subjects, thread, type, language);
+            await im.SendMessage(to, bodies, subjects, thread, type, language);
         }
 
         /// <summary>
@@ -756,11 +756,11 @@ namespace Sharp.Xmpp.Client
         /// the XMPP server.</exception>
         /// <exception cref="ObjectDisposedException">The XmppClient object has been
         /// disposed.</exception>
-        public void SendMessage(Message message)
+        public async Task SendMessage(Message message)
         {
             AssertValid();
             message.ThrowIfNull("message");
-            im.SendMessage(message);
+            await im.SendMessage(message);
         }
 
         /// <summary>
@@ -783,11 +783,11 @@ namespace Sharp.Xmpp.Client
         /// the XMPP server.</exception>
         /// <exception cref="ObjectDisposedException">The XmppClient object has been
         /// disposed.</exception>
-        public void SetStatus(Availability availability, string message = null,
+        public async Task SetStatus(Availability availability, string message = null,
             sbyte priority = 0, CultureInfo language = null)
         {
             AssertValid();
-            im.SetStatus(availability, message, 0, language);
+            await im.SetStatus(availability, message, 0, language);
         }
 
         /// <summary>
@@ -810,11 +810,11 @@ namespace Sharp.Xmpp.Client
         /// the XMPP server.</exception>
         /// <exception cref="ObjectDisposedException">The XmppClient object has been
         /// disposed.</exception>
-        public void SetStatus(Availability availability,
+        public async Task SetStatus(Availability availability,
             Dictionary<string, string> messages, sbyte priority = 0)
         {
             AssertValid();
-            im.SetStatus(availability, messages, priority);
+            await im.SetStatus(availability, messages, priority);
         }
 
         /// <summary>
@@ -831,11 +831,11 @@ namespace Sharp.Xmpp.Client
         /// the XMPP server.</exception>
         /// <exception cref="ObjectDisposedException">The XmppClient object has been
         /// disposed.</exception>
-        public void SetStatus(Status status)
+        public async Task SetStatus(Status status)
         {
             AssertValid();
             status.ThrowIfNull("status");
-            im.SetStatus(status);
+            await im.SetStatus(status);
         }
 
         /// <summary>
@@ -857,10 +857,10 @@ namespace Sharp.Xmpp.Client
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
         /// <include file='Examples.xml' path='S22/Xmpp/Client/XmppClient[@name="GetRoster"]/*'/>
-        public Roster GetRoster()
+        public async Task<Roster> GetRoster()
         {
             AssertValid();
-            return im.GetRoster();
+            return await im.GetRoster();
         }
 
         /// <summary>
@@ -885,14 +885,14 @@ namespace Sharp.Xmpp.Client
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public void AddContact(Jid jid, string name = null, params string[] groups)
+        public async Task AddContact(Jid jid, string name = null, params string[] groups)
         {
             AssertValid();
             jid.ThrowIfNull("jid");
             // Create a roster item for the new contact.
-            im.AddToRoster(new RosterItem(jid, name, groups));
+            await im.AddToRoster(new RosterItem(jid, name, groups));
             // Request a subscription from the contact.
-            im.RequestSubscription(jid);
+            await im.RequestSubscription(jid);
         }
 
         /// <summary>
@@ -912,13 +912,13 @@ namespace Sharp.Xmpp.Client
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public void RemoveContact(Jid jid)
+        public async Task RemoveContact(Jid jid)
         {
             AssertValid();
             jid.ThrowIfNull("jid");
             // This removes the contact from the user's roster AND also cancels any
             // subscriptions.
-            im.RemoveFromRoster(jid);
+            await im.RemoveFromRoster(jid);
         }
 
         /// <summary>
@@ -938,11 +938,11 @@ namespace Sharp.Xmpp.Client
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public void RemoveContact(RosterItem item)
+        public async Task RemoveContact(RosterItem item)
         {
             AssertValid();
             item.ThrowIfNull("item");
-            im.RemoveFromRoster(item);
+            await im.RemoveFromRoster(item);
         }
 
 #if WINDOWSPLATFORM
@@ -995,7 +995,7 @@ namespace Sharp.Xmpp.Client
         /// Publishes the image located at the specified path as the user's avatar using vcard based Avatars
         /// </summary>
         /// <param name="filePath">The path to the image to publish as the user's avatar.</param>
-        public void SetvCardAvatar(string filePath)
+        public async Task SetvCardAvatar(string filePath)
         {
             AssertValid();
             filePath.ThrowIfNull("filePath");
@@ -1004,7 +1004,7 @@ namespace Sharp.Xmpp.Client
             {
                 using (Stream s = File.OpenRead(filePath))
                 {
-                    vcardAvatars.SetAvatar(s);
+                    await vcardAvatars.SetAvatar(s);
                 }
             }
             catch (IOException copyError)
@@ -1020,10 +1020,10 @@ namespace Sharp.Xmpp.Client
         /// <param name="jid">The string jid of the user</param>
         /// <param name="filepath">The filepath where the avatar will be stored</param>
         /// <param name="callback">The action that will be executed after the file has been downloaded</param>
-        public void GetvCardAvatar(string jid, string filepath, Action callback)
+        public async Task GetvCardAvatar(string jid, string filepath, Func<Task> callback)
         {
             AssertValid();
-            vcardAvatars.RequestAvatar(new Jid(jid), filepath, callback);
+            await vcardAvatars.RequestAvatar(new Jid(jid), filepath, callback);
         }
 
         /// <summary>
@@ -1033,12 +1033,13 @@ namespace Sharp.Xmpp.Client
         /// <param name="str">The payload string to provide to the Request</param>
         /// <param name="callback">The callback method to call after the Request Result has being received. Included the serialised dat
         /// of the answer to the request</param>
-        public void RequestCustomIq(Jid jid, string str, Action callback = null)
+        public async Task RequestCustomIq(Jid jid, string str, Func<Task> callback = null)
         {
             AssertValid();
-            if (callback == null) cusiqextension.RequestCustomIq(jid, str);
+            if (callback == null)
+                await cusiqextension.RequestCustomIq(jid, str);
             else
-                cusiqextension.RequestCustomIqAsync(jid, str, callback);
+                await cusiqextension.RequestCustomIqAsync(jid, str, callback);
         }
 
         /// <summary>
@@ -1053,10 +1054,10 @@ namespace Sharp.Xmpp.Client
         /// the XMPP server.</exception>
         /// <exception cref="ObjectDisposedException">The XmppClient object has been
         /// disposed.</exception>
-        public void SetMood(Mood mood, string description = null)
+        public async Task SetMood(Mood mood, string description = null)
         {
             AssertValid();
-            userMood.SetMood(mood, description);
+            await userMood.SetMood(mood, description);
         }
 
         /// <summary>
@@ -1074,11 +1075,11 @@ namespace Sharp.Xmpp.Client
         /// <exception cref="ObjectDisposedException">The XmppClient object has been
         /// disposed.</exception>
         /// <include file='Examples.xml' path='S22/Xmpp/Client/XmppClient[@name="SetActivity"]/*'/>
-        public void SetActivity(GeneralActivity activity, SpecificActivity specific =
+        public async Task SetActivity(GeneralActivity activity, SpecificActivity specific =
             SpecificActivity.Other, string description = null)
         {
             AssertValid();
-            userActivity.SetActivity(activity, specific, description);
+            await userActivity.SetActivity(activity, specific, description);
         }
 
         /// <summary>
@@ -1111,11 +1112,11 @@ namespace Sharp.Xmpp.Client
         /// disposed.</exception>
         /// <remarks>Publishing no information (i.e. calling Publish without any parameters
         /// is considered a "stop command" to disable publishing).</remarks>
-        public void SetTune(string title = null, string artist = null, string track = null,
+        public async Task SetTune(string title = null, string artist = null, string track = null,
             int length = 0, int rating = 0, string source = null, string uri = null)
         {
             AssertValid();
-            userTune.Publish(title, artist, track, length, rating, source, uri);
+            await userTune.Publish(title, artist, track, length, rating, source, uri);
         }
 
         /// <summary>
@@ -1138,10 +1139,10 @@ namespace Sharp.Xmpp.Client
         /// <exception cref="ObjectDisposedException">The XmppClient object has been
         /// disposed.</exception>
         /// <include file='Examples.xml' path='S22/Xmpp/Client/XmppClient[@name="SetTune"]/*'/>
-        public void SetTune(TuneInformation tune)
+        public async Task SetTune(TuneInformation tune)
         {
             AssertValid();
-            userTune.Publish(tune);
+            await userTune.Publish(tune);
         }
 
         /// <summary>
@@ -1217,11 +1218,11 @@ namespace Sharp.Xmpp.Client
         /// the XMPP server.</exception>
         /// <exception cref="ObjectDisposedException">The XmppClient object has been
         /// disposed.</exception>
-        public string InitiateFileTransfer(Jid to, string path,
-            string description = null, Action<bool, FileTransfer> cb = null)
+        public async Task<string> InitiateFileTransfer(Jid to, string path,
+            string description = null, Func<bool, FileTransfer, Task> cb = null)
         {
             AssertValid();
-            return siFileTransfer.InitiateFileTransfer(to, path, description, cb);
+            return await siFileTransfer.InitiateFileTransfer(to, path, description, cb);
         }
 
         /// <summary>
@@ -1257,11 +1258,11 @@ namespace Sharp.Xmpp.Client
         /// the XMPP server.</exception>
         /// <exception cref="ObjectDisposedException">The XmppClient object has been
         /// disposed.</exception>
-        public string InitiateFileTransfer(Jid to, Stream stream, string name, long size,
-            string description = null, Action<bool, FileTransfer> cb = null)
+        public async Task<string> InitiateFileTransfer(Jid to, Stream stream, string name, long size,
+            string description = null, Func<bool, FileTransfer, Task> cb = null)
         {
             AssertValid();
-            return siFileTransfer.InitiateFileTransfer(to, stream, name, size, description, cb);
+            return await siFileTransfer.InitiateFileTransfer(to, stream, name, size, description, cb);
         }
 
         /// <summary>
@@ -1333,10 +1334,10 @@ namespace Sharp.Xmpp.Client
         /// See the "Howto: Register an account" guide for a walkthrough on how to
         /// register an XMPP account through the in-band registration process.
         /// </remarks>
-        public void Register(RegistrationCallback callback)
+        public async Task Register(RegistrationCallback callback)
         {
             callback.ThrowIfNull("callback");
-            inBandRegistration.Register(callback);
+            await inBandRegistration.Register(callback);
         }
 
         /// <summary>
@@ -1361,10 +1362,10 @@ namespace Sharp.Xmpp.Client
         /// condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public DateTime GetTime(Jid jid)
+        public async Task<DateTime> GetTime(Jid jid)
         {
             AssertValid();
-            return time.GetTime(jid);
+            return await time.GetTime(jid);
         }
 
         /// <summary>
@@ -1392,10 +1393,10 @@ namespace Sharp.Xmpp.Client
         /// condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public VersionInformation GetVersion(Jid jid)
+        public async Task<VersionInformation> GetVersion(Jid jid)
         {
             AssertValid();
-            return version.GetVersion(jid);
+            return await version.GetVersion(jid);
         }
 
         /// <summary>
@@ -1423,10 +1424,10 @@ namespace Sharp.Xmpp.Client
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
         /// <include file='Examples.xml' path='S22/Xmpp/Client/XmppClient[@name="GetFeatures"]/*'/>
-        public IEnumerable<Extension> GetFeatures(Jid jid)
+        public async Task<IEnumerable<Extension>> GetFeatures(Jid jid)
         {
             AssertValid();
-            return ecapa.GetExtensions(jid);
+            return await ecapa.GetExtensions(jid);
         }
 
         /// <summary>
@@ -1450,10 +1451,10 @@ namespace Sharp.Xmpp.Client
         /// condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public void Buzz(Jid jid, string message = null)
+        public async Task Buzz(Jid jid, string message = null)
         {
             AssertValid();
-            attention.GetAttention(jid, message);
+            await attention.GetAttention(jid, message);
         }
 
         /// <summary>
@@ -1478,10 +1479,10 @@ namespace Sharp.Xmpp.Client
         /// condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public TimeSpan Ping(Jid jid)
+        public async Task<TimeSpan> Ping(Jid jid)
         {
             AssertValid();
-            return ping.PingEntity(jid);
+            return await ping.PingEntity(jid);
         }
 
         /// <summary>
@@ -1502,24 +1503,24 @@ namespace Sharp.Xmpp.Client
         /// not connected to a remote host.</exception>
         /// <exception cref="ObjectDisposedException">The XmppClient object
         /// has been disposed.</exception>
-        public void Block(Jid jid)
+        public async Task Block(Jid jid)
         {
             AssertValid();
             jid.ThrowIfNull("jid");
             // If our server supports the 'Blocking Command' extension, we can just
             // use that.
-            if (block.Supported)
-                block.Block(jid);
+            if (await block.Supported)
+                await block.Block(jid);
             else
             {
                 // Privacy list blocking. If our server doesn't support privacy lists, we're
                 // out of luck.
                 PrivacyList privacyList = null;
-                string name = im.GetDefaultPrivacyList();
+                string name = await im.GetDefaultPrivacyList();
                 if (name != null)
-                    privacyList = im.GetPrivacyList(name);
+                    privacyList = await im.GetPrivacyList(name);
                 // If no default list has been set, look for a 'blocklist' list.
-                foreach (var list in im.GetPrivacyLists())
+                foreach (var list in await im.GetPrivacyLists())
                 {
                     if (list.Name == "blocklist")
                         privacyList = list;
@@ -1529,9 +1530,9 @@ namespace Sharp.Xmpp.Client
                     privacyList = new PrivacyList("blocklist");
                 privacyList.Add(new JidPrivacyRule(jid, false, 0), true);
                 // Save the privacy list and activate it.
-                im.EditPrivacyList(privacyList);
-                im.SetDefaultPrivacyList(privacyList.Name);
-                im.SetActivePrivacyList(privacyList.Name);
+                await im.EditPrivacyList(privacyList);
+                await im.SetDefaultPrivacyList(privacyList.Name);
+                await im.SetActivePrivacyList(privacyList.Name);
             }
         }
 
@@ -1556,24 +1557,24 @@ namespace Sharp.Xmpp.Client
         /// not connected to a remote host.</exception>
         /// <exception cref="ObjectDisposedException">The XmppClient object
         /// has been disposed.</exception>
-        public void Unblock(Jid jid)
+        public async Task Unblock(Jid jid)
         {
             AssertValid();
             jid.ThrowIfNull("jid");
             // If our server supports the 'Blocking Command' extension, we can just
             // use that.
-            if (block.Supported)
-                block.Unblock(jid);
+            if (await block.Supported)
+                await block.Unblock(jid);
             else
             {
                 // Privacy list blocking. If our server doesn't support privacy lists, we're
                 // out of luck.
                 PrivacyList privacyList = null;
-                string name = im.GetDefaultPrivacyList();
+                string name = await im.GetDefaultPrivacyList();
                 if (name != null)
-                    privacyList = im.GetPrivacyList(name);
+                    privacyList = await im.GetPrivacyList(name);
                 // If no default list has been set, look for a 'blocklist' list.
-                foreach (var list in im.GetPrivacyLists())
+                foreach (var list in await im.GetPrivacyLists())
                 {
                     if (list.Name == "blocklist")
                         privacyList = list;
@@ -1596,13 +1597,13 @@ namespace Sharp.Xmpp.Client
                 // Save the privacy list and activate it.
                 if (privacyList.Count == 0)
                 {
-                    im.SetDefaultPrivacyList();
-                    im.RemovePrivacyList(privacyList.Name);
+                    await im.SetDefaultPrivacyList();
+                    await im.RemovePrivacyList(privacyList.Name);
                 }
                 else
                 {
-                    im.EditPrivacyList(privacyList);
-                    im.SetDefaultPrivacyList(privacyList.Name);
+                    await im.EditPrivacyList(privacyList);
+                    await im.SetDefaultPrivacyList(privacyList.Name);
                 }
             }
         }
@@ -1624,16 +1625,16 @@ namespace Sharp.Xmpp.Client
         /// not connected to a remote host.</exception>
         /// <exception cref="ObjectDisposedException">The XmppClient object
         /// has been disposed.</exception>
-        public IEnumerable<Jid> GetBlocklist()
+        public async Task<IEnumerable<Jid>> GetBlocklist()
         {
             AssertValid();
-            if (block.Supported)
-                return block.GetBlocklist();
+            if (await block.Supported)
+                return await block.GetBlocklist();
             PrivacyList privacyList = null;
-            string name = im.GetDefaultPrivacyList();
+            string name = await im.GetDefaultPrivacyList();
             if (name != null)
-                privacyList = im.GetPrivacyList(name);
-            foreach (var list in im.GetPrivacyLists())
+                privacyList = await im.GetPrivacyList(name);
+            foreach (var list in await im.GetPrivacyLists())
             {
                 if (list.Name == "blocklist")
                     privacyList = list;

@@ -1,6 +1,7 @@
 ﻿using Sharp.Xmpp.Im;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Sharp.Xmpp.Extensions
 {
@@ -67,10 +68,10 @@ namespace Sharp.Xmpp.Extensions
         /// <exception cref="NotSupportedException">The XMPP entity with
         /// the specified JID does not support the 'Attention' XMPP
         /// extension.</exception>
-        public void GetAttention(Jid jid, string message = null)
+        public async Task GetAttention(Jid jid, string message = null)
         {
             jid.ThrowIfNull("jid");
-            if (!ecapa.Supports(jid, Extension.Attention))
+            if (!await ecapa.Supports(jid, Extension.Attention))
             {
                 throw new NotSupportedException("The XMPP entity does not support the " +
                     "'Attention' extension.");
@@ -78,7 +79,7 @@ namespace Sharp.Xmpp.Extensions
             Im.Message m = new Im.Message(jid, message);
             // Add the 'attention' element to the message.
             m.Data.Child(Xml.Element("attention", "urn:xmpp:attention:0"));
-            im.SendMessage(m);
+            await im.SendMessage(m);
         }
     }
 }

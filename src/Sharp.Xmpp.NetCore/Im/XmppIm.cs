@@ -350,16 +350,16 @@ namespace Sharp.Xmpp.Im
                 if (Username == null)
                     return null;
                 // Establish a session (Refer to RFC 3921, Section 3. Session Establishment).
-                EstablishSession();
+                await EstablishSession();
 
 
                 //If roster is disabled don't send it nor the presence
                 if (retrieveRoster)
                 {
                     // Retrieve user's roster as recommended (Refer to RFC 3921, Section 7.3).
-                    Roster roster = GetRoster();
+                    Roster roster = await GetRoster();
                     // Send initial presence.
-                    SendPresence(new Presence());
+                    await SendPresence(new Presence());
                     return roster;
                 }
 
@@ -397,11 +397,11 @@ namespace Sharp.Xmpp.Im
             password.ThrowIfNull("password");
             await core.Authenticate(username, password);
             // Establish a session (Refer to RFC 3921, Section 3. Session Establishment).
-            EstablishSession();
+            await EstablishSession();
             // Retrieve user's roster as recommended (Refer to RFC 3921, Section 7.3).
-            Roster roster = GetRoster();
+            Roster roster = await GetRoster();
             // Send initial presence.
-            SendPresence(new Presence());
+            await SendPresence(new Presence());
         }
 
         /// <summary>
@@ -426,7 +426,7 @@ namespace Sharp.Xmpp.Im
         /// the XMPP server.</exception>
         /// <exception cref="ObjectDisposedException">The XmppIm object has been
         /// disposed.</exception>
-        public void SendMessage(Jid to, string body, string subject = null,
+        public async Task SendMessage(Jid to, string body, string subject = null,
             string thread = null, MessageType type = MessageType.Normal,
             CultureInfo language = null)
         {
@@ -434,7 +434,7 @@ namespace Sharp.Xmpp.Im
             to.ThrowIfNull("to");
             body.ThrowIfNullOrEmpty("body");
             Message m = new Message(to, body, subject, thread, type, language);
-            SendMessage(m);
+            await SendMessage(m);
         }
 
         /// <summary>
@@ -461,7 +461,7 @@ namespace Sharp.Xmpp.Im
         /// the XMPP server.</exception>
         /// <exception cref="ObjectDisposedException">The XmppIm object has been
         /// disposed.</exception>
-        public void SendMessage(Jid to, IDictionary<string, string> bodies,
+        public async Task SendMessage(Jid to, IDictionary<string, string> bodies,
             IDictionary<string, string> subjects = null, string thread = null,
             MessageType type = MessageType.Normal, CultureInfo language = null)
         {
@@ -469,7 +469,7 @@ namespace Sharp.Xmpp.Im
             to.ThrowIfNull("to");
             bodies.ThrowIfNull("bodies");
             Message m = new Message(to, bodies, subjects, thread, type, language);
-            SendMessage(m);
+            await SendMessage(m);
         }
 
         /// <summary>
@@ -484,7 +484,7 @@ namespace Sharp.Xmpp.Im
         /// the XMPP server.</exception>
         /// <exception cref="ObjectDisposedException">The XmppIm object has been
         /// disposed.</exception>
-        public void SendMessage(Message message)
+        public async Task SendMessage(Message message)
         {
             AssertValid();
             message.ThrowIfNull("message");
@@ -497,7 +497,7 @@ namespace Sharp.Xmpp.Im
                 if (filter != null)
                     filter.Output(message);
             }
-            core.SendMessage(message);
+            await core.SendMessage(message);
         }
 
         /// <summary>
@@ -514,12 +514,12 @@ namespace Sharp.Xmpp.Im
         /// the XMPP server.</exception>
         /// <exception cref="ObjectDisposedException">The XmppIm object has been
         /// disposed.</exception>
-        public void RequestSubscription(Jid jid)
+        public async Task RequestSubscription(Jid jid)
         {
             AssertValid();
             jid.ThrowIfNull("jid");
             Presence p = new Presence(jid, null, PresenceType.Subscribe);
-            SendPresence(p);
+            await SendPresence(p);
         }
 
         /// <summary>
@@ -534,12 +534,12 @@ namespace Sharp.Xmpp.Im
         /// the XMPP server.</exception>
         /// <exception cref="ObjectDisposedException">The XmppIm object has been
         /// disposed.</exception>
-        public void Unsubscribe(Jid jid)
+        public async Task Unsubscribe(Jid jid)
         {
             AssertValid();
             jid.ThrowIfNull("jid");
             Presence p = new Presence(jid, null, PresenceType.Unsubscribe);
-            SendPresence(p);
+            await SendPresence(p);
         }
 
         /// <summary>
@@ -555,12 +555,12 @@ namespace Sharp.Xmpp.Im
         /// the XMPP server.</exception>
         /// <exception cref="ObjectDisposedException">The XmppIm object has been
         /// disposed.</exception>
-        public void ApproveSubscriptionRequest(Jid jid)
+        public async Task ApproveSubscriptionRequest(Jid jid)
         {
             AssertValid();
             jid.ThrowIfNull("jid");
             Presence p = new Presence(jid, null, PresenceType.Subscribed);
-            SendPresence(p);
+            await SendPresence(p);
         }
 
         /// <summary>
@@ -576,12 +576,12 @@ namespace Sharp.Xmpp.Im
         /// the XMPP server.</exception>
         /// <exception cref="ObjectDisposedException">The XmppIm object has been
         /// disposed.</exception>
-        public void RefuseSubscriptionRequest(Jid jid)
+        public async Task RefuseSubscriptionRequest(Jid jid)
         {
             AssertValid();
             jid.ThrowIfNull("jid");
             Presence p = new Presence(jid, null, PresenceType.Unsubscribed);
-            SendPresence(p);
+            await SendPresence(p);
         }
 
         /// <summary>
@@ -598,12 +598,12 @@ namespace Sharp.Xmpp.Im
         /// the XMPP server.</exception>
         /// <exception cref="ObjectDisposedException">The XmppIm object has been
         /// disposed.</exception>
-        public void RevokeSubscription(Jid jid)
+        public async Task RevokeSubscription(Jid jid)
         {
             AssertValid();
             jid.ThrowIfNull("jid");
             Presence p = new Presence(jid, null, PresenceType.Unsubscribed);
-            SendPresence(p);
+            await SendPresence(p);
         }
 
         /// <summary>
@@ -626,7 +626,7 @@ namespace Sharp.Xmpp.Im
         /// the XMPP server.</exception>
         /// <exception cref="ObjectDisposedException">The XmppIm object has been
         /// disposed.</exception>
-        public void SetStatus(Availability availability, string message = null,
+        public async Task SetStatus(Availability availability, string message = null,
             sbyte priority = 0, CultureInfo language = null)
         {
             AssertValid();
@@ -635,7 +635,7 @@ namespace Sharp.Xmpp.Im
             List<XmlElement> elems = new List<XmlElement>();
             if (availability != Availability.Online)
             {
-                var states = new Dictionary<Availability, string>() {
+                var states = new Dictionary<Availability, string> {
 						{ Availability.Away, "away" },
 						{ Availability.DoNotDisturb, "dnd" },
 						{ Availability.ExtendedAway, "xa" },
@@ -649,7 +649,7 @@ namespace Sharp.Xmpp.Im
                 elems.Add(Xml.Element("status").Text(message));
             Presence p = new Presence(null, null, PresenceType.Available, null,
                 language, elems.ToArray());
-            SendPresence(p);
+            await SendPresence(p);
         }
 
         /// <summary>
@@ -672,7 +672,7 @@ namespace Sharp.Xmpp.Im
         /// the XMPP server.</exception>
         /// <exception cref="ObjectDisposedException">The XmppIm object has been
         /// disposed.</exception>
-        public void SetStatus(Availability availability,
+        public async Task SetStatus(Availability availability,
             Dictionary<string, string> messages, sbyte priority = 0)
         {
             AssertValid();
@@ -681,7 +681,7 @@ namespace Sharp.Xmpp.Im
             List<XmlElement> elems = new List<XmlElement>();
             if (availability != Availability.Online)
             {
-                var states = new Dictionary<Availability, string>() {
+                var states = new Dictionary<Availability, string> {
 						{ Availability.Away, "away" },
 						{ Availability.DoNotDisturb, "dnd" },
 						{ Availability.ExtendedAway, "xa" },
@@ -699,7 +699,7 @@ namespace Sharp.Xmpp.Im
             }
             Presence p = new Presence(null, null, PresenceType.Available, null,
                 null, elems.ToArray());
-            SendPresence(p);
+            await SendPresence(p);
         }
 
         /// <summary>
@@ -716,11 +716,11 @@ namespace Sharp.Xmpp.Im
         /// the XMPP server.</exception>
         /// <exception cref="ObjectDisposedException">The XmppIm object has been
         /// disposed.</exception>
-        public void SetStatus(Status status)
+        public async Task SetStatus(Status status)
         {
             AssertValid();
             status.ThrowIfNull("status");
-            SetStatus(status.Availability, status.Messages, status.Priority);
+            await SetStatus(status.Availability, status.Messages, status.Priority);
         }
 
         /// <summary>
@@ -741,10 +741,10 @@ namespace Sharp.Xmpp.Im
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public Roster GetRoster()
+        public async Task<Roster> GetRoster()
         {
             AssertValid();
-            Iq iq = IqRequest(IqType.Get, null, Jid,
+            Iq iq = await IqRequest(IqType.Get, null, Jid,
                 Xml.Element("query", "jabber:iq:roster"));
             if (iq.Type == IqType.Error)
                 throw Util.ExceptionFromError(iq, "The roster could not be retrieved.");
@@ -773,7 +773,7 @@ namespace Sharp.Xmpp.Im
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public void AddToRoster(RosterItem item)
+        public async Task AddToRoster(RosterItem item)
         {
             AssertValid();
             item.ThrowIfNull("item");
@@ -783,7 +783,7 @@ namespace Sharp.Xmpp.Im
             foreach (string group in item.Groups)
                 xml.Child(Xml.Element("group").Text(group));
             var query = Xml.Element("query", "jabber:iq:roster").Child(xml);
-            Iq iq = IqRequest(IqType.Set, null, Jid, query);
+            Iq iq = await IqRequest(IqType.Set, null, Jid, query);
             if (iq.Type == IqType.Error)
                 throw Util.ExceptionFromError(iq, "The item could not be added to the roster.");
         }
@@ -805,14 +805,14 @@ namespace Sharp.Xmpp.Im
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public void RemoveFromRoster(Jid jid)
+        public async Task RemoveFromRoster(Jid jid)
         {
             AssertValid();
             jid.ThrowIfNull("jid");
             var query = Xml.Element("query", "jabber:iq:roster").Child(
                 Xml.Element("item").Attr("jid", jid.ToString())
                 .Attr("subscription", "remove"));
-            Iq iq = IqRequest(IqType.Set, null, Jid, query);
+            Iq iq = await IqRequest(IqType.Set, null, Jid, query);
             if (iq.Type == IqType.Error)
                 throw Util.ExceptionFromError(iq, "The item could not be removed from the roster.");
         }
@@ -834,11 +834,11 @@ namespace Sharp.Xmpp.Im
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public void RemoveFromRoster(RosterItem item)
+        public async Task RemoveFromRoster(RosterItem item)
         {
             AssertValid();
             item.ThrowIfNull("item");
-            RemoveFromRoster(item.Jid);
+            await RemoveFromRoster(item.Jid);
         }
 
         /// <summary>
@@ -859,10 +859,10 @@ namespace Sharp.Xmpp.Im
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public IEnumerable<PrivacyList> GetPrivacyLists()
+        public async Task<IEnumerable<PrivacyList>> GetPrivacyLists()
         {
             AssertValid();
-            Iq iq = IqRequest(IqType.Get, null, Jid,
+            Iq iq = await IqRequest(IqType.Get, null, Jid,
                 Xml.Element("query", "jabber:iq:privacy"));
             if (iq.Type == IqType.Error)
                 Util.ExceptionFromError(iq, "The privacy lists could not be retrieved.");
@@ -874,7 +874,7 @@ namespace Sharp.Xmpp.Im
             {
                 string name = list.GetAttribute("name");
                 if (!String.IsNullOrEmpty(name))
-                    lists.Add(GetPrivacyList(name));
+                    lists.Add(await GetPrivacyList(name));
             }
             return lists;
         }
@@ -897,13 +897,13 @@ namespace Sharp.Xmpp.Im
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public PrivacyList GetPrivacyList(string name)
+        public async Task<PrivacyList> GetPrivacyList(string name)
         {
             AssertValid();
             name.ThrowIfNull("name");
             var query = Xml.Element("query", "jabber:iq:privacy").
                 Child(Xml.Element("list").Attr("name", name));
-            Iq iq = IqRequest(IqType.Get, null, Jid, query);
+            Iq iq = await IqRequest(IqType.Get, null, Jid, query);
             if (iq.Type == IqType.Error)
                 throw Util.ExceptionFromError(iq, "The privacy list could not be retrieved.");
             query = iq.Data["query"];
@@ -947,13 +947,13 @@ namespace Sharp.Xmpp.Im
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public void RemovePrivacyList(string name)
+        public async Task RemovePrivacyList(string name)
         {
             AssertValid();
             name.ThrowIfNull("name");
             var query = Xml.Element("query", "jabber:iq:privacy").Child(
                 Xml.Element("list").Attr("name", name));
-            Iq iq = IqRequest(IqType.Set, null, Jid, query);
+            Iq iq = await IqRequest(IqType.Set, null, Jid, query);
             if (iq.Type == IqType.Error)
                 throw Util.ExceptionFromError(iq, "The privacy list could not be removed.");
         }
@@ -980,7 +980,7 @@ namespace Sharp.Xmpp.Im
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public void EditPrivacyList(PrivacyList list)
+        public async Task EditPrivacyList(PrivacyList list)
         {
             AssertValid();
             list.ThrowIfNull("list");
@@ -1025,7 +1025,7 @@ namespace Sharp.Xmpp.Im
                 }
                 listElement.Child(item);
             }
-            Iq iq = IqRequest(IqType.Set, null, Jid,
+            Iq iq = await IqRequest(IqType.Set, null, Jid,
                 Xml.Element("query", "jabber:iq:privacy").Child(listElement));
             if (iq.Type == IqType.Error)
                 throw Util.ExceptionFromError(iq, "The privacy list could not be edited.");
@@ -1050,10 +1050,10 @@ namespace Sharp.Xmpp.Im
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public string GetActivePrivacyList()
+        public async Task<string> GetActivePrivacyList()
         {
             AssertValid();
-            Iq iq = IqRequest(IqType.Get, null, Jid,
+            Iq iq = await IqRequest(IqType.Get, null, Jid,
                 Xml.Element("query", "jabber:iq:privacy"));
             if (iq.Type == IqType.Error)
                 throw Util.ExceptionFromError(iq, "The privacy list could not be retrieved.");
@@ -1089,14 +1089,14 @@ namespace Sharp.Xmpp.Im
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public void SetActivePrivacyList(string name = null)
+        public async Task SetActivePrivacyList(string name = null)
         {
             AssertValid();
             var query = Xml.Element("query", "jabber:iq:privacy").Child(
                 Xml.Element("active"));
             if (name != null)
                 query["active"].Attr("name", name);
-            Iq iq = IqRequest(IqType.Set, null, Jid, query);
+            Iq iq = await IqRequest(IqType.Set, null, Jid, query);
             if (iq.Type == IqType.Error)
                 throw Util.ExceptionFromError(iq, "The privacy list could not be activated.");
         }
@@ -1121,10 +1121,10 @@ namespace Sharp.Xmpp.Im
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public string GetDefaultPrivacyList()
+        public async Task<string> GetDefaultPrivacyList()
         {
             AssertValid();
-            Iq iq = IqRequest(IqType.Get, null, Jid,
+            Iq iq = await IqRequest(IqType.Get, null, Jid,
                 Xml.Element("query", "jabber:iq:privacy"));
             if (iq.Type == IqType.Error)
                 throw Util.ExceptionFromError(iq, "The privacy list could not be retrieved.");
@@ -1160,14 +1160,14 @@ namespace Sharp.Xmpp.Im
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        public void SetDefaultPrivacyList(string name = null)
+        public async Task SetDefaultPrivacyList(string name = null)
         {
             AssertValid();
             var query = Xml.Element("query", "jabber:iq:privacy").Child(
                 Xml.Element("default"));
             if (name != null)
                 query["default"].Attr("name", name);
-            Iq iq = IqRequest(IqType.Set, null, Jid, query);
+            Iq iq = await IqRequest(IqType.Set, null, Jid, query);
             if (iq.Type == IqType.Error)
             {
                 throw Util.ExceptionFromError(iq, "The privacy list could not be made " +
@@ -1325,7 +1325,7 @@ namespace Sharp.Xmpp.Im
         /// connected to a remote host.</exception>
         /// <exception cref="ObjectDisposedException">The XmppIm object has been
         /// disposed.</exception>
-        internal void SendPresence(Presence presence)
+        internal async Task SendPresence(Presence presence)
         {
             presence.ThrowIfNull("presence");
             // Invoke IOutput<Presence> Plugins.
@@ -1335,15 +1335,15 @@ namespace Sharp.Xmpp.Im
                 if (filter != null)
                     filter.Output(presence);
             }
-            core.SendPresence(presence);
+            await core.SendPresence(presence);
         }
 
         /// <summary>
         /// Sends a default presence stanza to the server
         /// </summary>
-        public void SendPresence()
+        public async Task SendPresence()
         {
-            SendPresence(new Presence());            
+            await SendPresence(new Presence());            
         }
 
         /// <summary>
@@ -1372,7 +1372,7 @@ namespace Sharp.Xmpp.Im
         /// network.</exception>
         /// <exception cref="TimeoutException">A timeout was specified and it
         /// expired.</exception>
-        internal Iq IqRequest(IqType type, Jid to = null, Jid from = null,
+        internal async Task<Iq> IqRequest(IqType type, Jid to = null, Jid from = null,
             XmlElement data = null, CultureInfo language = null,
             int millisecondsTimeout = -1)
         {
@@ -1384,7 +1384,7 @@ namespace Sharp.Xmpp.Im
                 if (filter != null)
                     filter.Output(iq);
             }
-            return core.IqRequest(iq, millisecondsTimeout);
+            return await core.IqRequest(iq, millisecondsTimeout);
         }
 
         /// <summary>
@@ -1409,9 +1409,9 @@ namespace Sharp.Xmpp.Im
         /// connected to a remote host.</exception>
         /// <exception cref="IOException">There was a failure while writing to the
         /// network.</exception>
-        internal string IqRequestAsync(IqType type, Jid to = null, Jid from = null,
+        internal async Task<string> IqRequestAsync(IqType type, Jid to = null, Jid from = null,
             XmlElement data = null, CultureInfo language = null,
-            Action<string, Iq> callback = null)
+            Func<string, Iq, Task> callback = null)
         {
             Iq iq = new Iq(type, null, to, from, data, language);
             // Invoke IOutput<Iq> Plugins.
@@ -1421,7 +1421,7 @@ namespace Sharp.Xmpp.Im
                 if (filter != null)
                     filter.Output(iq);
             }
-            return core.IqRequestAsync(iq, callback);
+            return await core.IqRequestAsync(iq, callback);
         }
 
         /// <summary>
@@ -1443,7 +1443,7 @@ namespace Sharp.Xmpp.Im
         /// connected to a remote host.</exception>
         /// <exception cref="IOException">There was a failure while writing to the
         /// network.</exception>
-        internal void IqResponse(IqType type, string id, Jid to = null, Jid from = null,
+        internal async Task IqResponse(IqType type, string id, Jid to = null, Jid from = null,
             XmlElement data = null, CultureInfo language = null)
         {
             AssertValid(false);
@@ -1455,7 +1455,7 @@ namespace Sharp.Xmpp.Im
                 if (filter != null)
                     filter.Output(iq);
             }
-            core.IqResponse(iq);
+            await core.IqResponse(iq);
         }
 
         /// <summary>
@@ -1478,14 +1478,14 @@ namespace Sharp.Xmpp.Im
         /// connected to a remote host.</exception>
         /// <exception cref="IOException">There was a failure while writing to the
         /// network.</exception>
-        internal void IqError(Iq iq, ErrorType type, ErrorCondition condition,
+        internal async Task IqError(Iq iq, ErrorType type, ErrorCondition condition,
             string text = null, params XmlElement[] data)
         {
             AssertValid(false);
             iq.ThrowIfNull("iq");
             Iq response = new Iq(IqType.Error, iq.Id, iq.From, Jid,
                 new XmppError(type, condition, text, data).Data);
-            core.IqResponse(response);
+            await core.IqResponse(response);
         }
 
         /// <summary>
@@ -1503,12 +1503,12 @@ namespace Sharp.Xmpp.Im
         /// connected to a remote host.</exception>
         /// <exception cref="IOException">There was a failure while writing to the
         /// network.</exception>
-        internal void IqResult(Iq iq, XmlElement data = null)
+        internal async Task IqResult(Iq iq, XmlElement data = null)
         {
             AssertValid(false);
             iq.ThrowIfNull("iq");
             Iq response = new Iq(IqType.Result, iq.Id, iq.From, Jid, data);
-            core.IqResponse(response);
+            await core.IqResponse(response);
         }
 
         /// <summary>
@@ -1517,9 +1517,9 @@ namespace Sharp.Xmpp.Im
         /// <remarks>
         /// For details, refer to RFC 3921, Section 3. Session Establishment.
         /// </remarks>
-        private void EstablishSession()
+        private async Task EstablishSession()
         {
-            Iq ret = IqRequest(IqType.Set, Hostname, null,
+            Iq ret = await IqRequest(IqType.Set, Hostname, null,
                 Xml.Element("session", "urn:ietf:params:xml:ns:xmpp-session"));
             if (ret.Type == IqType.Error)
                 throw Util.ExceptionFromError(ret, "Session establishment failed for Hostname: " + Hostname);
@@ -1530,19 +1530,19 @@ namespace Sharp.Xmpp.Im
         /// </summary>
         private void SetupEventHandlers()
         {
-            core.Iq += (sender, e) => { OnIq(e.Stanza); };
-            core.Presence += (sender, e) =>
+            core.Iq += async (sender, e) => { await OnIq(e.Stanza); };
+            core.Presence += async (sender, e) =>
             {
                 // FIXME: Raise Error event if constructor raises exception?
-                OnPresence(new Presence(e.Stanza));
+                await OnPresence(new Presence(e.Stanza));
             };
-            core.Message += (sender, e) =>
+            core.Message += async (sender, e) =>
             {
-                OnMessage(new Message(e.Stanza));
+                await OnMessage(new Message(e.Stanza));
             };
-            core.Error += (sender, e) =>
+            core.Error += async (sender, e) =>
             {
-                Error.Raise(sender, new ErrorEventArgs(e.Exception));
+                Error(sender, new ErrorEventArgs(e.Exception));
             };
         }
 
@@ -1570,7 +1570,7 @@ namespace Sharp.Xmpp.Im
         /// Callback method when an IQ-request stanza has been received.
         /// </summary>
         /// <param name="iq">The received IQ stanza.</param>
-        private void OnIq(Iq iq)
+        private async Task OnIq(Iq iq)
         {
             // Invoke IInput<Iq> Plugins.
             foreach (var ext in extensions)
@@ -1579,7 +1579,7 @@ namespace Sharp.Xmpp.Im
                 if (filter != null)
                 {
                     // Swallow IQ stanza?
-                    if (filter.Input(iq))
+                    if (await filter.Input(iq))
                         return;
                 }
             }
@@ -1589,20 +1589,20 @@ namespace Sharp.Xmpp.Im
                 switch (query.NamespaceURI)
                 {
                     case "jabber:iq:roster":
-                        ProcessRosterIq(iq);
+                        await ProcessRosterIq(iq);
                         return;
                 }
             }
 
             // If we're still here, send back an error response.
-            IqError(iq, ErrorType.Cancel, ErrorCondition.FeatureNotImplemented);
+            await IqError(iq, ErrorType.Cancel, ErrorCondition.FeatureNotImplemented);
         }
 
         /// <summary>
         /// Callback invoked when a presence stanza has been received.
         /// </summary>
         /// <param name="presence">The received presence stanza.</param>
-        private void OnPresence(Presence presence)
+        private async Task OnPresence(Presence presence)
         {
             // Invoke IInput<Presence> Plugins.
             foreach (var ext in extensions)
@@ -1611,7 +1611,7 @@ namespace Sharp.Xmpp.Im
                 if (filter != null)
                 {
                     // Swallow presence stanza?
-                    if (filter.Input(presence))
+                    if (await filter.Input(presence))
                         return;
                 }
             }
@@ -1641,7 +1641,7 @@ namespace Sharp.Xmpp.Im
         /// Callback invoked when a message stanza has been received.
         /// </summary>
         /// <param name="message">The received message stanza.</param>
-        private void OnMessage(Message message)
+        private async Task OnMessage(Message message)
         {
             // Invoke IInput<Message> Plugins.
             foreach (var ext in extensions)
@@ -1650,7 +1650,7 @@ namespace Sharp.Xmpp.Im
                 if (filter != null)
                 {
                     // Swallow message?
-                    if (filter.Input(message))
+                    if (await filter.Input(message))
                         return;
                 }
             }
@@ -1765,7 +1765,7 @@ namespace Sharp.Xmpp.Im
         private Roster ParseRoster(XmlElement query)
         {
             Roster roster = new Roster();
-            var states = new Dictionary<string, SubscriptionState>() {
+            var states = new Dictionary<string, SubscriptionState> {
 				{ "none", SubscriptionState.None },
 				{ "to", SubscriptionState.To },
 				{ "from", SubscriptionState.From },
@@ -1798,9 +1798,9 @@ namespace Sharp.Xmpp.Im
         /// Processes an IQ stanza containing a roster management request.
         /// </summary>
         /// <param name="iq">The IQ stanza to process.</param>
-        private void ProcessRosterIq(Iq iq)
+        private async Task ProcessRosterIq(Iq iq)
         {
-            var states = new Dictionary<string, SubscriptionState>() {
+            var states = new Dictionary<string, SubscriptionState> {
 				{ "none", SubscriptionState.None },
 				{ "to", SubscriptionState.To },
 				{ "from", SubscriptionState.From },
@@ -1832,7 +1832,7 @@ namespace Sharp.Xmpp.Im
                     RosterUpdated.Raise(this, new RosterUpdatedEventArgs(ri, s == "remove"));
                 }
                 // Acknowledge IQ request.
-                IqResult(iq);
+                await IqResult(iq);
             }
         }
 
@@ -1864,7 +1864,7 @@ namespace Sharp.Xmpp.Im
                 granularity |= PrivacyGranularity.PresenceOut;
             string type = item.GetAttribute("type");
             string value = item.GetAttribute("value");
-            var states = new Dictionary<string, SubscriptionState>() {
+            var states = new Dictionary<string, SubscriptionState> {
 				{ "none", SubscriptionState.None },
 				{ "to", SubscriptionState.To },
 				{ "from", SubscriptionState.From },

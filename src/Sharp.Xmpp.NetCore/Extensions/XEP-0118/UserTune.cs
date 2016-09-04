@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Xml;
+using System.Threading.Tasks;
 
 namespace Sharp.Xmpp.Extensions
 {
@@ -47,7 +48,7 @@ namespace Sharp.Xmpp.Extensions
         /// Determines whether our server supports personal eventing and thusly
         /// the user tune extension.
         /// </summary>
-        public bool Supported
+        public Task<bool> Supported
         {
             get
             {
@@ -95,7 +96,7 @@ namespace Sharp.Xmpp.Extensions
         /// unspecified XMPP error occurred.</exception>
         /// <remarks>Publishing no information (i.e. calling Publish without any parameters
         /// is considered a "stop command" to disable publishing).</remarks>
-        public void Publish(string title = null, string artist = null, string track = null,
+        public async Task Publish(string title = null, string artist = null, string track = null,
             int length = 0, int rating = 0, string source = null, string uri = null)
         {
             length.ThrowIfOutOfRange(0, Int16.MaxValue);
@@ -115,7 +116,7 @@ namespace Sharp.Xmpp.Extensions
                 tune.Child(Xml.Element("source").Text(source));
             if (!String.IsNullOrEmpty(uri))
                 tune.Child(Xml.Element("uri").Text(uri));
-            pep.Publish("http://jabber.org/protocol/tune", null, tune);
+            await pep.Publish("http://jabber.org/protocol/tune", null, tune);
         }
 
         /// <summary>
@@ -134,10 +135,10 @@ namespace Sharp.Xmpp.Extensions
         /// unspecified XMPP error occurred.</exception>
         /// <remarks>Publishing no information (i.e. calling Publish without any parameters
         /// is considered a "stop command" to disable publishing).</remarks>
-        public void Publish(TuneInformation tune)
+        public async Task Publish(TuneInformation tune)
         {
             tune.ThrowIfNull("tune");
-            Publish(tune.Title, tune.Artist, tune.Track, tune.Length,
+            await Publish(tune.Title, tune.Artist, tune.Track, tune.Length,
                 tune.Rating, tune.Source, tune.Uri);
         }
 

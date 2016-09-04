@@ -196,7 +196,7 @@ namespace Sharp.Xmpp.Extensions
         /// <param name="stanza">The stanza which has been received.</param>
         /// <returns>true to intercept the stanza or false to pass the stanza
         /// on to the next handler.</returns>
-        public bool Input(Iq stanza)
+        public async Task<bool> Input(Iq stanza)
         {
             if (stanza.Type != IqType.Set)
                 return false;
@@ -207,12 +207,12 @@ namespace Sharp.Xmpp.Extensions
             // Verify the sid attribute of the query element.
             if (!VerifySession(stanza, sid))
             {
-                im.IqError(stanza, ErrorType.Modify, ErrorCondition.NotAcceptable);
+                await im.IqError(stanza, ErrorType.Modify, ErrorCondition.NotAcceptable);
                 return true;
             }
             if (query.GetAttribute("mode") == "udp")
             {
-                im.IqError(stanza, ErrorType.Modify, ErrorCondition.FeatureNotImplemented,
+                await im.IqError(stanza, ErrorType.Modify, ErrorCondition.FeatureNotImplemented,
                     "UDP-mode is not supported.");
                 return true;
             }
@@ -220,7 +220,7 @@ namespace Sharp.Xmpp.Extensions
             var hosts = ParseStreamhosts(query);
             if (hosts.Count() == 0)
             {
-                im.IqError(stanza, ErrorType.Modify, ErrorCondition.BadRequest,
+                await im.IqError(stanza, ErrorType.Modify, ErrorCondition.BadRequest,
                     "No streamhosts advertised.");
                 return true;
             }
@@ -232,7 +232,7 @@ namespace Sharp.Xmpp.Extensions
                 using (var client = await EstablishConnection(stanza, sid, hosts))
                 {
                     // We can not start reading data from the network-stream.
-                    ReceiveData(stanza, sid, client.GetStream());
+                    await ReceiveData(stanza, sid, client.GetStream());
                 }
             });
             // We took care of this IQ request, so intercept it and don't pass it
@@ -283,7 +283,7 @@ namespace Sharp.Xmpp.Extensions
                 {
                     var externalAddresses = GetExternalAddresses();
                     // If all of our external addresses are behind NATs, we may need a proxy.
-                    bool behindNAT = (await externalAddresses).All(addr => BehindNAT(addr));
+                    bool behindNAT = (await externalAddresses).All(BehindNAT);
                     if (behindNAT)
                     {
                         // Look for user-defined proxies first.
@@ -292,7 +292,7 @@ namespace Sharp.Xmpp.Extensions
                         else
                         {
                             // Otherwise query XMPP server for a list of proxies.
-                            proxies = GetProxyList();
+                            proxies = await GetProxyList();
                         }
                     }
                 }
@@ -424,11 +424,11 @@ namespace Sharp.Xmpp.Extensions
                     connected = true;
                     // Send the SOCKS5 Connect command.
                     string hostname = Sha1(sid + stanza.From + stanza.To);
-                    SocksReply reply = client.Request(SocksCommand.Connect, hostname, 0);
+                    SocksReply reply = await client.Request(SocksCommand.Connect, hostname, 0);
                     if (reply.Status != ReplyStatus.Succeeded)
                         throw new Socks5Exception("SOCKS5 Connect request failed.");
                     // Send acknowledging IQ-result.
-                    im.IqResult(stanza,
+                    await im.IqResult(stanza,
                         Xml.Element("query", "http://jabber.org/protocol/bytestreams")
                         .Attr("sid", sid).Child(Xml.Element("streamhost-used")
                         .Attr("jid", host.Jid.ToString()))
@@ -444,7 +444,7 @@ namespace Sharp.Xmpp.Extensions
             }
             // Still here means we couldn't connect to any of the streamhosts or
             // an error occurred during SOCKS5 negotiation.
-            im.IqError(stanza, ErrorType.Cancel, ErrorCondition.ItemNotFound);
+            await im.IqError(stanza, ErrorType.Cancel, ErrorCondition.ItemNotFound);
             // Error out.
             throw new XmppException("Couldn't connect to streamhost.");
         }
@@ -459,7 +459,7 @@ namespace Sharp.Xmpp.Extensions
         /// data.</param>
         /// <exception cref="XmppException">The specifid SID does not denote a
         /// valid SI session.</exception>
-        private void ReceiveData(Iq stanza, string sid, Stream stream)
+        private async Task ReceiveData(Iq stanza, string sid, Stream stream)
         {
             SISession session = siFileTransfer.GetSession(sid, stanza.From, stanza.To);
             if (session == null)
@@ -470,11 +470,11 @@ namespace Sharp.Xmpp.Extensions
                 while (left > 0)
                 {
                     byte[] buffer = new byte[4096];
-                    int read = stream.Read(buffer, 0, buffer.Length);
+                    int read = await stream.ReadAsync(buffer, 0, buffer.Length);
                     if (read <= 0)
                         break;
                     left = left - read;
-                    session.Stream.Write(buffer, 0, read);
+                    await session.Stream.WriteAsync(buffer, 0, read);
                     // Update the byte count and raise the 'BytesTransferred' event.
                     session.Count = session.Count + read;
                     BytesTransferred.Raise(this, new BytesTransferredEventArgs(session));
@@ -510,10 +510,10 @@ namespace Sharp.Xmpp.Extensions
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        private Streamhost GetNetworkAddress(Jid jid)
+        private async Task<Streamhost> GetNetworkAddress(Jid jid)
         {
             jid.ThrowIfNull("jid");
-            var iq = im.IqRequest(Core.IqType.Get, jid, im.Jid,
+            var iq = await im.IqRequest(Core.IqType.Get, jid, im.Jid,
                 Xml.Element("query", "http://jabber.org/protocol/bytestreams"));
             if (iq.Type == Core.IqType.Error)
             {
@@ -545,19 +545,19 @@ namespace Sharp.Xmpp.Extensions
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        private IEnumerable<Streamhost> GetProxyList()
+        private async Task<IEnumerable<Streamhost>> GetProxyList()
         {
             ISet<Streamhost> set = new HashSet<Streamhost>();
-            foreach (var item in sdisco.GetItems(im.Jid.Domain))
+            foreach (var item in await sdisco.GetItems(im.Jid.Domain))
             {
                 // Query each item for its identities and look for a 'proxy' identity.
-                foreach (var ident in sdisco.GetIdentities(item.Jid))
+                foreach (var ident in await sdisco.GetIdentities(item.Jid))
                 {
                     // It's a SOCKS5 proxy.
                     if (ident.Category == "proxy" && ident.Type == "bytestreams")
                     {
                         // Get the full network address.
-                        var address = GetNetworkAddress(item.Jid);
+                        var address = await GetNetworkAddress(item.Jid);
                         set.Add(address);
                     }
                 }
@@ -581,7 +581,7 @@ namespace Sharp.Xmpp.Extensions
             ISet<IPAddress> set = new HashSet<IPAddress>();
             try
             {
-                set.Add(serverIpCheck.GetExternalAddress());
+                set.Add(await serverIpCheck.GetExternalAddress());
             }
             catch
             {
@@ -658,11 +658,7 @@ namespace Sharp.Xmpp.Extensions
         /// <remarks>This only accounts for IPv4 addresses.</remarks>
         public static IEnumerable<IPAddress> GetIpAddresses(IPAddress address = null)
         {
-#if WINDOWSPLATFORM
             return WindowsGetIpAddresses(address);
-#else
-            return AndroidGetIpAddresses(address);
-#endif
         }
 
         /// <summary>
@@ -713,35 +709,7 @@ namespace Sharp.Xmpp.Extensions
             }
             return set;
         }
-
-        /// <summary>
-        /// Returns an enumerable collection of the system's IP addresses for Android Platform.
-        /// </summary>
-        /// <param name="address">If specified, only IP addresses that are in
-        /// the same subnet as the address specified are returned. If this is
-        /// null, all of the system's network interfaces IP addresses are
-        /// returned.</param>
-        /// <returns>An enumerable collection of IP addresses.</returns>
-        /// <remarks>This only accounts for IPv4 addresses.</remarks>
-        private static IEnumerable<IPAddress> AndroidGetIpAddresses(IPAddress address = null)
-        {
-            ISet<IPAddress> set = new HashSet<IPAddress>();
-            //var connectivityManager = (ConnectivityManager)GetSystemService(ConnectivityService);
-
-            var netInterfaces = NetworkInterface.GetAllNetworkInterfaces();
-            //FIXME
-            //NetworkInterface.GetAllNetworkInterfaces does not work in XAMARIN, in Android etc.
-            //Thus an exception is raised and we catch it upstream
-            //FIXME
-            //http://stackoverflow.com/questions/17868420/networkinterface-getallnetworkinterfaces-returns-interfaces-with-operationalst
-            //http://developer.xamarin.com/recipes/ios/network/reachability/detect_if_network_is_available/
-            if (netInterfaces == null)
-            {
-                throw new NotImplementedException();
-            }
-            return null;
-        }
-
+        
         /// <summary>
         /// Performs a direct transfer, meaning we act as a SOCKS5 server.
         /// </summary>
@@ -818,7 +786,7 @@ namespace Sharp.Xmpp.Extensions
                     .Attr("port", socks5Server.Port.ToString()));
             }
             // Send IQ with streamhosts to the target.
-            var iq = im.IqRequest(IqType.Set, session.To, im.Jid, xml);
+            var iq = await im.IqRequest(IqType.Set, session.To, im.Jid, xml);
             if (iq.Type == IqType.Error)
             {
                 throw Util.ExceptionFromError(iq, "The SOCKS5 connection could not " +
@@ -840,20 +808,20 @@ namespace Sharp.Xmpp.Extensions
         /// unspecified XMPP error occurred.</exception>
         private async Task MediatedTransfer(SISession session, IEnumerable<Streamhost> proxies)
         {
-            var proxy = NegotiateProxy(session, proxies);
+            var proxy = await NegotiateProxy(session, proxies);
             // Connect to the designated proxy.
             using (var client = await Socks5Client.Create(proxy.Host, proxy.Port))
             {
                 // Send the SOCKS5 Connect command.
                 string hostname = Sha1(session.Sid + session.From + session.To);
-                SocksReply reply = client.Request(SocksCommand.Connect, hostname, 0);
+                SocksReply reply = await client.Request(SocksCommand.Connect, hostname, 0);
                 if (reply.Status != ReplyStatus.Succeeded)
                     throw new Socks5Exception("SOCKS5 Connect request failed.");
                 // Activate the bytetream.
                 var xml = Xml.Element("query", "http://jabber.org/protocol/bytestreams")
                     .Attr("sid", session.Sid).Child(
                     Xml.Element("activate").Text(session.To.ToString()));
-                Iq iq = im.IqRequest(IqType.Set, proxy.Jid, im.Jid, xml);
+                Iq iq = await im.IqRequest(IqType.Set, proxy.Jid, im.Jid, xml);
                 if (iq.Type == IqType.Error)
                     throw Util.ExceptionFromError(iq, "Could not activate the bytestream.");
                 // Finally, go ahead and send the data to the proxy.
@@ -873,7 +841,7 @@ namespace Sharp.Xmpp.Extensions
         /// error condition.</exception>
         /// <exception cref="XmppException">The server returned invalid data or another
         /// unspecified XMPP error occurred.</exception>
-        private Streamhost NegotiateProxy(SISession session, IEnumerable<Streamhost> proxies)
+        private async Task<Streamhost> NegotiateProxy(SISession session, IEnumerable<Streamhost> proxies)
         {
             // Compile XML containing our list of proxy servers.
             var xml = Xml.Element("query", "http://jabber.org/protocol/bytestreams")
@@ -886,7 +854,7 @@ namespace Sharp.Xmpp.Extensions
                     .Attr("port", proxy.Port.ToString()));
             }
             // Wait for the other site to tell us which proxy server it selected.
-            var iq = im.IqRequest(IqType.Set, session.To, im.Jid, xml);
+            var iq = await im.IqRequest(IqType.Set, session.To, im.Jid, xml);
             if (iq.Type == IqType.Error)
                 throw Util.ExceptionFromError(iq, "The SOCKS5 negotiation failed.");
             var query = iq.Data["query"];
@@ -972,7 +940,7 @@ namespace Sharp.Xmpp.Extensions
             if (calculated != hash)
                 throw new Socks5Exception("Hostname hash mismatch.");
             // We're good to go.
-            server.Reply(ReplyStatus.Succeeded, hash, request.Port);
+            await server.Reply(ReplyStatus.Succeeded, hash, request.Port);
         }
 
         /// <summary>

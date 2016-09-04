@@ -62,9 +62,9 @@ namespace Sharp.Xmpp.Extensions.Socks5
         /// <exception cref="Socks5Exception">The request could not be performed.
         /// Consult the InnerException property of the Socks5Exception to learn
         /// the reason.</exception>
-        public SocksReply Request(SocksCommand command, IPAddress address, ushort port)
+        public async Task<SocksReply> Request(SocksCommand command, IPAddress address, ushort port)
         {
-            return Request(new SocksRequest(command, address, port));
+            return await Request(new SocksRequest(command, address, port));
         }
 
         /// <summary>
@@ -81,9 +81,9 @@ namespace Sharp.Xmpp.Extensions.Socks5
         /// <exception cref="Socks5Exception">The request could not be performed.
         /// Consult the InnerException property of the Socks5Exception to learn
         /// the reason.</exception>
-        public SocksReply Request(SocksCommand command, string domain, ushort port)
+        public async Task<SocksReply> Request(SocksCommand command, string domain, ushort port)
         {
-            return Request(new SocksRequest(command, domain, port));
+            return await Request(new SocksRequest(command, domain, port));
         }
 
         /// <summary>
@@ -98,14 +98,14 @@ namespace Sharp.Xmpp.Extensions.Socks5
         /// <exception cref="Socks5Exception">The request could not be performed.
         /// Consult the InnerException property of the Socks5Exception to learn
         /// the reason.</exception>
-        public SocksReply Request(SocksRequest request)
+        public async Task<SocksReply> Request(SocksRequest request)
         {
             request.ThrowIfNull("request");
             AssertValid();
             try
             {
                 byte[] bytes = request.Serialize();
-                stream.Write(bytes, 0, bytes.Length);
+                await stream.WriteAsync(bytes, 0, bytes.Length);
                 ByteBuilder b = new ByteBuilder();
                 using (var r = new BinaryReader(stream, Encoding.UTF8, true))
                 {
@@ -165,7 +165,7 @@ namespace Sharp.Xmpp.Extensions.Socks5
             clt.Password = password;
             clt.client = new TcpClient();
             await clt.client.ConnectAsync(hostname, port);
-            clt.InitializeConnection();
+            await clt.InitializeConnection();
 
             return clt;
         }
@@ -189,7 +189,7 @@ namespace Sharp.Xmpp.Extensions.Socks5
             clt.Password = password;
             clt.client = new TcpClient();
             await clt.client.ConnectAsync(address, port);
-            clt.InitializeConnection();
+            await clt.InitializeConnection();
 
             return clt;
         }
@@ -266,10 +266,10 @@ namespace Sharp.Xmpp.Extensions.Socks5
         /// </summary>
         /// <exception cref="Socks5Exception">The server returned invalid data, or
         /// authentication failed.</exception>
-        private void InitializeConnection()
+        private async Task InitializeConnection()
         {
             stream = client.GetStream();
-            var greeting = PerformGreeting();
+            var greeting = await PerformGreeting();
 
             switch (greeting.Method)
             {
@@ -278,7 +278,7 @@ namespace Sharp.Xmpp.Extensions.Socks5
                     break;
 
                 case AuthMethod.Username:
-                    Authenticate();
+                    await Authenticate();
                     break;
 
                 default:
@@ -292,14 +292,14 @@ namespace Sharp.Xmpp.Extensions.Socks5
         /// <returns>The greeting-message returned by the SOCKS5 server.</returns>
         /// <exception cref="Socks5Exception">The server returned invalid or
         /// unexpected data.</exception>
-        private ServerGreeting PerformGreeting()
+        private async Task<ServerGreeting> PerformGreeting()
         {
             var methods = new HashSet<AuthMethod>() { AuthMethod.None };
             if (!String.IsNullOrEmpty(Username))
                 methods.Add(AuthMethod.Username);
             byte[] bytes = new ClientGreeting(methods).Serialize();
 
-            stream.Write(bytes, 0, bytes.Length);
+            await stream.WriteAsync(bytes, 0, bytes.Length);
             // Read the server's response.
             bytes = new byte[2];
             stream.Read(bytes, 0, 2);
@@ -311,10 +311,10 @@ namespace Sharp.Xmpp.Extensions.Socks5
         /// </summary>
         /// <exception cref="Socks5Exception">The server returned invalid or
         /// unexpected data, or authentication failed.</exception>
-        private void Authenticate()
+        private async Task Authenticate()
         {
             byte[] bytes = new AuthRequest(Username, Password).Serialize();
-            stream.Write(bytes, 0, bytes.Length);
+            await stream.WriteAsync(bytes, 0, bytes.Length);
             // Read the server's response.
             bytes = new byte[2];
             stream.Read(bytes, 0, 2);

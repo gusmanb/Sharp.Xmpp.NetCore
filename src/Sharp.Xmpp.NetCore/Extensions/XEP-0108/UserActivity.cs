@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Xml;
+using System.Threading.Tasks;
 
 namespace Sharp.Xmpp.Extensions
 {
@@ -48,7 +49,7 @@ namespace Sharp.Xmpp.Extensions
         /// Determines whether our server supports personal eventing and thusly
         /// the user activity extension.
         /// </summary>
-        public bool Supported
+        public Task<bool> Supported
         {
             get
             {
@@ -80,7 +81,7 @@ namespace Sharp.Xmpp.Extensions
         /// best describing the user's activity in more detail.</param>
         /// <param name="description">A natural-language description of, or reason
         /// for, the activity.</param>
-        public void SetActivity(GeneralActivity activity, SpecificActivity specific =
+        public async Task SetActivity(GeneralActivity activity, SpecificActivity specific =
             SpecificActivity.Other, string description = null)
         {
             var xml = Xml.Element("activity", "http://jabber.org/protocol/activity");
@@ -90,7 +91,7 @@ namespace Sharp.Xmpp.Extensions
             xml.Child(e);
             if (description != null)
                 xml.Child(Xml.Element("text").Text(description));
-            pep.Publish("http://jabber.org/protocol/activity", null, xml);
+            await pep.Publish("http://jabber.org/protocol/activity", null, xml);
         }
 
         /// <summary>
