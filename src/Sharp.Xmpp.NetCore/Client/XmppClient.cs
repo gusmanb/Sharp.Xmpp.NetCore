@@ -91,13 +91,6 @@ namespace Sharp.Xmpp.Client
         /// </summary>
         private UserTune userTune;
 
-#if WINDOWSPLATFORM
-		/// <summary>
-		/// Provides access to the 'User Avatar' XMPP extension functionality.
-		/// </summary>
-		UserAvatar userAvatar;
-#endif
-
         /// <summary>
         /// Provides access to the 'User Mood' XMPP extension functionality.
         /// </summary>
@@ -417,20 +410,6 @@ namespace Sharp.Xmpp.Client
                 userActivity.ActivityChanged -= value;
             }
         }
-
-#if WINDOWSPLATFORM
-		/// <summary>
-		/// The event that is raised when a contact has updated his or her avatar.
-		/// </summary>
-		public event EventHandler<AvatarChangedEventArgs> AvatarChanged {
-			add {
-				userAvatar.AvatarChanged += value;
-			}
-			remove {
-				userAvatar.AvatarChanged -= value;
-			}
-		}
-#endif
 
         /// <summary>
         /// The event that is raised when a contact has published tune information.
@@ -944,53 +923,7 @@ namespace Sharp.Xmpp.Client
             item.ThrowIfNull("item");
             await im.RemoveFromRoster(item);
         }
-
-#if WINDOWSPLATFORM
-        /// <summary>
-        /// Publishes the image located at the specified path as the user's avatar.
-        /// </summary>
-        /// <param name="filePath">The path to the image to publish as the user's
-        /// avatar.</param>
-        /// <exception cref="ArgumentNullException">The filePath parameter is
-        /// null.</exception>
-        /// <exception cref="ArgumentException">filePath is a zero-length string,
-        /// contains only white space, or contains one or more invalid
-        /// characters.</exception>
-        /// <exception cref="PathTooLongException">The specified path, file name,
-        /// or both exceed the system-defined maximum length. For example, on
-        /// Windows-based platforms, paths must be less than 248 characters, and
-        /// file names must be less than 260 characters.</exception>
-        /// <exception cref="DirectoryNotFoundException">The specified path is
-        /// invalid, (for example, it is on an unmapped drive).</exception>
-        /// <exception cref="UnauthorizedAccessException">The path specified is
-        /// a directory, or the caller does not have the required
-        /// permission.</exception>
-        /// <exception cref="FileNotFoundException">The file specified in
-        /// filePath was not found.</exception>
-        /// <exception cref="NotSupportedException">filePath is in an invalid
-        /// format, or the server does not support the 'Personal Eventing
-        /// Protocol' extension.</exception>
-        /// <exception cref="XmppErrorException">The server returned an XMPP error code.
-        /// Use the Error property of the XmppErrorException to obtain the specific
-        /// error condition.</exception>
-        /// <exception cref="XmppException">The server returned invalid data or another
-        /// unspecified XMPP error occurred.</exception>
-        /// <exception cref="InvalidOperationException">The XmppClient instance is not
-        /// connected to a remote host, or the XmppClient instance has not authenticated with
-        /// the XMPP server.</exception>
-        /// <exception cref="ObjectDisposedException">The XmppClient object has been
-        /// disposed.</exception>
-        /// <remarks>
-        /// The following file types are supported:
-        ///  BMP, GIF, JPEG, PNG and TIFF.
-        /// </remarks>
-		public void SetAvatar(string filePath) {
-			AssertValid();
-			filePath.ThrowIfNull("filePath");
-			userAvatar.Publish(filePath);
-		}
-#endif
-
+        
         /// <summary>
         /// Publishes the image located at the specified path as the user's avatar using vcard based Avatars
         /// </summary>
@@ -1729,9 +1662,6 @@ namespace Sharp.Xmpp.Client
             block = im.LoadExtension<BlockingCommand>();
             pep = im.LoadExtension<Pep>();
             userTune = im.LoadExtension<UserTune>();
-#if WINDOWSPLATFORM
-			userAvatar = im.LoadExtension<UserAvatar>();
-#endif
             userMood = im.LoadExtension<UserMood>();
             dataForms = im.LoadExtension<DataForms>();
             featureNegotiation = im.LoadExtension<FeatureNegotiation>();

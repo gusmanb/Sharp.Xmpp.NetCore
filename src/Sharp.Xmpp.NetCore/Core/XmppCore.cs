@@ -398,7 +398,7 @@ namespace Sharp.Xmpp.Core
             
             //Update to use DnDnsCore
             var request = new DnsQueryRequest();
-            var results = await request.Resolve("_xmpp-client._tcp." + domain, DnDnsCore.Enums.NsType.SRV, DnDnsCore.Enums.NsClass.ANY, ProtocolType.Tcp);
+            var results = await request.Resolve("_xmpp-client._tcp." + domain, DnDnsCore.Enums.NsType.SRV, DnDnsCore.Enums.NsClass.ANY, ProtocolType.Udp);
             
             dnsRecordList = results.Answers.Where(a => a.DnsHeader.NsType == DnDnsCore.Enums.NsType.SRV)
                 .Select(a => (SrvRecord)a)
